@@ -195,18 +195,21 @@ if st.session_state.view == "results":
         # Phase 1: simulated upload fill (the files are already on the server
         # by the time this code runs — Streamlit received them to get here —
         # so this is a deliberate, fixed-length flourish, not real transfer
-        # progress). Left to right, navy.
-        upload_frames = 14
+        # progress). Left to right, navy. Kept short: on Streamlit Cloud each
+        # step is a real websocket round trip, and real YOLO inference below
+        # is already much slower than it is locally, so this shouldn't add
+        # its own noticeable delay on top of that.
+        upload_frames = 5
         for step in range(1, upload_frames + 1):
             render_upload(round(step / upload_frames * 100))
-            time.sleep(0.03)
+            time.sleep(0.02)
 
-        # Phase 2: real per-photo detection, right to left, striped. Each
-        # step gets a small floor so a 1-2 photo batch still shows visible
-        # motion instead of jumping straight to done.
-        step_time = min(0.25, max(0.03, 2.0 / n))
+        # Phase 2: real per-photo detection, right to left, striped. No
+        # artificial per-photo sleep here — actual detection (slower on
+        # Streamlit Cloud's CPU-only, shared hardware than locally) already
+        # takes visible time on its own; adding a synthetic floor on top of
+        # that only made an already-slow step feel slower.
         render_processing(0)
-        time.sleep(step_time)
         for idx, (key, f) in enumerate(pending, start=1):
             raw_bytes = f.getvalue()
             img = vh.load_image(raw_bytes)
@@ -218,18 +221,18 @@ if st.session_state.view == "results":
                 cache[key]["corrected"] = True
                 cache[key]["corrected_boxes"] = existing_correction
             render_processing(idx)
-            time.sleep(step_time)
 
         # Phase 3: a confirmation box (matching the dashed "batch processed"
-        # style) that sits on screen for exactly 3 seconds, then clears
-        # itself — no click or toast needed.
+        # style) that sits on screen briefly, then clears itself — no click
+        # or toast needed. Shortened from 3s to 1.2s; it was pure dead time
+        # stacked on top of already-slow real inference on Streamlit Cloud.
         progress_ph.markdown(f"""
         <div style="background:#FFFFFF;border:1px dashed #9B9D97;padding:10px 16px;display:flex;align-items:center;gap:14px">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B7A3D" stroke-width="2.4"><path d="M4 12.5l5 5L20 6.5"></path></svg>
           <div style="font-size:13px"><strong>Analysed {n} photo{'s' if n != 1 else ''}.</strong> Adding to your results…</div>
         </div>
         """, unsafe_allow_html=True)
-        time.sleep(3)
+        time.sleep(1.2)
         progress_ph.empty()
         st.rerun()  # collapse the upload box into the slim bar immediately
 

@@ -27,4 +27,12 @@ ultralytics==8.4.127
 # opencv-python-headless explicitly (same `cv2` module, none of the GUI deps)
 # is the standard fix for ultralytics on a server deployment.
 opencv-python-headless
-streamlit-drawable-canvas==0.9.3  # image-detail-view box editor (annotate_helpers.py); needs the numpy shim in that file under numpy>=1.24
+# streamlit-drawable-canvas (last released 0.9.3, 2022) is incompatible with
+# current Streamlit releases -- its frontend predates a component-loading
+# protocol change, which is what caused both "trouble loading the
+# streamlit_drawable_canvas.st_canvas component" and the canvas background
+# photo silently failing to render. streamlit-drawable-canvas-fix is a
+# maintained fork that patches exactly this, is a drop-in replacement (same
+# `from streamlit_drawable_canvas import st_canvas` import -- no code changes
+# needed elsewhere), and is what annotate_helpers.py's box editor now uses.
+streamlit-drawable-canvas-fix  # image-detail-view box editor (annotate_helpers.py); needs the numpy shim in that file under numpy>=1.24
