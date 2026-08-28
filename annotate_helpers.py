@@ -404,9 +404,33 @@ def render_editor(it, assessment, threshold):
             # same boxes, sync any moved/resized geometry into our
             # bookkeeping only — fabric_key stays as-is so the canvas isn't
             # force-reloaded out from under an in-progress drag.
+            moved = False
             for i, obj in enumerate(objects):
-                boxes[i]["box"] = _obj_to_box(
-                    obj, canvas_w, canvas_h, boxes[i]["class_key"], boxes[i]["source"])["box"]
+                new_box = _obj_to_box(obj, canvas_w, canvas_h, boxes[i]["class_key"], boxes[i]["source"])["box"]
+                # >1px (in canvas terms) of actual movement, not the
+                # sub-pixel drift a box's own coordinates already pick up
+                # just from being round-tripped through JSON once (pixels
+                # -> normalized 0-1 float -> JSON -> back) even when
+                # nothing was dragged — an exact-equality check here would
+                # treat that drift as a move on every single rerun.
+                if any(abs(a - b) * dim > 1 for a, b, dim in
+                       zip(new_box, boxes[i]["box"], (canvas_w, canvas_h, canvas_w, canvas_h))):
+                    moved = True
+                boxes[i]["box"] = new_box
+            if moved:
+                # The label baked into display_img above was drawn *before*
+                # this sync, from wherever the box was before this drag —
+                # this rerun already streamed that stale bake to the browser
+                # as its own delta the moment st_canvas() was called, a few
+                # lines up, so the fix isn't to skip sending it (too late)
+                # but to immediately follow it with a second, corrected one.
+                # Rerunning now, with `boxes` already holding the post-drag
+                # position, means the *next* pass bakes the label where the
+                # box actually ended up instead of where it used to be —
+                # otherwise that stale label just sits there until whatever
+                # you do next (a different box, a class change, …) happens
+                # to trigger another rerun and drag it back into sync.
+                st.rerun()
         # else (fewer objects reported than we're tracking): deliberately
         # ignored. The component reports the canvas's contents back to
         # Streamlit on every mouse-up, and that can fire from a plain click
