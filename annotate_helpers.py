@@ -75,6 +75,7 @@ if not hasattr(_st_image_module, "image_to_url"):
 from streamlit_drawable_canvas import st_canvas  # noqa: E402  (must follow the shims above)
 
 import detector  # noqa: E402
+import view_helpers as vh  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent  # this repo's root (flattened out of streamlit_app/)
 CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections"
@@ -264,7 +265,14 @@ def render_editor(it, assessment, threshold):
     store_key = f"_corr_boxes_{key}"
     version_key = f"_corr_version_{key}"
     fabric_key = f"_corr_fabric_{key}"
-    st.session_state.setdefault(store_key, seed_boxes(assessment))
+    # Seed from a previously saved correction if one exists (this photo's
+    # own truth), not always from the raw AI assessment — otherwise the
+    # first time you open the editor in a fresh session/browser tab (before
+    # store_key exists yet), any hand-drawn box you'd already saved would
+    # silently be replaced by the unedited AI output. "Reset to AI
+    # detections" below is the explicit, deliberate way back to the raw
+    # baseline; opening the editor should never do that on your behalf.
+    st.session_state.setdefault(store_key, it.get("corrected_boxes") or seed_boxes(assessment))
     st.session_state.setdefault(version_key, 0)
     boxes = st.session_state[store_key]
 
@@ -284,7 +292,7 @@ def render_editor(it, assessment, threshold):
 
     mc1, mc2, mc3 = st.columns([2, 2, 3])
     with mc1:
-        mode_label = st.radio("Mode", ["Move / resize", "Draw new box"], key=f"mode_{key}",
+        mode_label = st.radio("Mode", ["Draw new box", "Move / resize"], key=f"mode_{key}",
                                label_visibility="collapsed")
     mode = "transform" if mode_label == "Move / resize" else "rect"
     with mc2:
@@ -295,9 +303,21 @@ def render_editor(it, assessment, threshold):
             st.rerun()
     with mc3:
         st.caption(f"{len(boxes)} box{'es' if len(boxes) != 1 else ''} on this photo — solid outline is the "
-                    f"model's, dashed is hand-drawn. Move/resize drags any box; switch to Draw new box to add one.")
+                    f"model's, dashed is hand-drawn. Drag anywhere to add a new box; switch to Move / resize to reposition one.")
 
-    display_img = it["image"].convert("RGB").resize((canvas_w, canvas_h))
+    # Background shows the exact same labeled-box styling as the read-mode
+    # detail view (thicker outlines, dark-chip colored-text labels) — built
+    # fresh from the CURRENT `boxes` on every rerun (via the same
+    # boxes_to_raw -> detector.assess -> draw_overlay pipeline the
+    # corrected-photo view already uses elsewhere), so it stays in sync as
+    # you add, move, or reclassify boxes rather than freezing at whatever
+    # was true when the editor first opened. The Fabric rectangles drawn on
+    # top of it are what's actually interactive; the background is purely
+    # a labeled reference image underneath them.
+    live_raw = boxes_to_raw(boxes)
+    live_assessment = detector.assess(live_raw, 0.0, required=())
+    labeled_image = vh.draw_overlay(it["image"], live_assessment["persons"], detail=True)
+    display_img = labeled_image.convert("RGB").resize((canvas_w, canvas_h))
     result = st_canvas(
         fill_color="rgba(0,0,0,0)",
         stroke_width=2,
@@ -314,11 +334,26 @@ def render_editor(it, assessment, threshold):
         objects = result.json_data.get("objects", [])
         if len(objects) > len(boxes):
             # one or more new rectangles appended at the end. The canvas
-            # already has these live on screen — we only need our own
-            # bookkeeping (for the class list below and for saving), so
-            # fabric_key is deliberately left untouched here.
-            for obj in objects[len(boxes):]:
+            # already has these live on screen, so this doesn't need to
+            # force a reload right now — but it DOES need to update our own
+            # bookkeeping (for the class list below and for saving) AND
+            # fabric_key, or a newly hand-drawn box only ever existed in
+            # this one browser tab's live canvas: the moment the canvas
+            # component remounts (navigate away and back to this photo,
+            # Prev/Next, a fresh session picking up an old save) it reloads
+            # from fabric_key and the box is gone from the picture — even
+            # though `boxes` (and the saved correction) still has it, which
+            # is exactly the "the label isn't there when I open it again"
+            # bug this used to cause. We extend fabric_key with the exact
+            # objects the canvas just reported (not a value recomputed from
+            # our own normalized box tuples, which would drift by float
+            # rounding on every rerun and cause the constant-reload/blink
+            # problem described below) — so this is a one-time, harmless
+            # resync right after a box is drawn, not a per-rerun one.
+            n_before = len(boxes)
+            for obj in objects[n_before:]:
                 boxes.append(_obj_to_box(obj, canvas_w, canvas_h, class_key=None, source="manual"))
+            st.session_state[fabric_key]["objects"].extend(objects[n_before:])
         elif len(objects) == len(boxes):
             # same boxes, sync any moved/resized geometry into our
             # bookkeeping only — fabric_key stays as-is so the canvas isn't
