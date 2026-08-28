@@ -297,8 +297,20 @@ def render_editor(it, assessment, threshold):
     # interaction — which also wiped out whatever you'd just drawn before you
     # could see it. So this is only (re)built at deliberate reset points
     # below; every other rerun hands the canvas back the exact same dict.
+    # synced_key tracks whether the canvas has echoed back a clean,
+    # exact match of whatever we last (re)built fabric_key from. Only once
+    # that's happened do we trust a LATER report of *more* objects than
+    # `boxes` as a box the user actually just drew (see the sync logic
+    # below) -- a real hand-drawn box can only exist on top of a
+    # confirmed baseline, so an oversized report before we've ever seen
+    # one back is some frontend artifact (a mount race, a stale echo),
+    # not a user action, and taking it at face value is exactly what
+    # silently corrupted a photo's boxes with a batch of unclassed,
+    # unrequested ones before this guard existed.
+    synced_key = f"_corr_synced_{key}"
     if fabric_key not in st.session_state:
         st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h, background_image=it["image"])
+        st.session_state[synced_key] = False
 
     mc1, mc2, mc3 = st.columns([2, 2, 3])
     with mc1:
@@ -310,6 +322,7 @@ def render_editor(it, assessment, threshold):
             st.session_state[store_key] = seed_boxes(assessment)
             st.session_state[fabric_key] = boxes_to_fabric(
                 st.session_state[store_key], canvas_w, canvas_h, background_image=it["image"])
+            st.session_state[synced_key] = False
             st.session_state[version_key] += 1
             st.rerun()
     with mc3:
@@ -339,24 +352,32 @@ def render_editor(it, assessment, threshold):
 
     if result is not None and result.json_data is not None:
         objects = result.json_data.get("objects", [])
-        if len(objects) > len(boxes):
-            # one or more new rectangles appended at the end. The canvas
-            # already has these live on screen, so this doesn't need to
-            # force a reload right now — but it DOES need to update our own
-            # bookkeeping (for the class list below and for saving) AND
-            # fabric_key, or a newly hand-drawn box only ever existed in
-            # this one browser tab's live canvas: the moment the canvas
-            # component remounts (navigate away and back to this photo,
-            # Prev/Next, a fresh session picking up an old save) it reloads
-            # from fabric_key and the box is gone from the picture — even
-            # though `boxes` (and the saved correction) still has it, which
-            # is exactly the "the label isn't there when I open it again"
-            # bug this used to cause. We extend fabric_key with the exact
-            # objects the canvas just reported (not a value recomputed from
-            # our own normalized box tuples, which would drift by float
-            # rounding on every rerun and cause the constant-reload/blink
-            # problem described below) — so this is a one-time, harmless
-            # resync right after a box is drawn, not a per-rerun one.
+        if len(objects) > len(boxes) and st.session_state.get(synced_key):
+            # one or more new rectangles appended at the end, AND we've
+            # already seen the canvas cleanly echo back our own current
+            # seed at least once since the last (re)build of fabric_key --
+            # so this genuinely is new, on top of a confirmed baseline, not
+            # a stale/inflated report from a component that hasn't settled
+            # yet (see synced_key's own comment above; that's what used to
+            # let a handful of unrequested, unclassed boxes silently get
+            # written into a photo's corrections the moment its editor was
+            # opened). The canvas already has these live on screen, so this
+            # doesn't need to force a reload right now — but it DOES need
+            # to update our own bookkeeping (for the class list below and
+            # for saving) AND fabric_key, or a newly hand-drawn box only
+            # ever existed in this one browser tab's live canvas: the
+            # moment the canvas component remounts (navigate away and back
+            # to this photo, Prev/Next, a fresh session picking up an old
+            # save) it reloads from fabric_key and the box is gone from the
+            # picture — even though `boxes` (and the saved correction)
+            # still has it, which is exactly the "the label isn't there
+            # when I open it again" bug this used to cause. We extend
+            # fabric_key with the exact objects the canvas just reported
+            # (not a value recomputed from our own normalized box tuples,
+            # which would drift by float rounding on every rerun and cause
+            # the constant-reload/blink problem described below) — so this
+            # is a one-time, harmless resync right after a box is drawn,
+            # not a per-rerun one.
             n_before = len(boxes)
             for obj in objects[n_before:]:
                 boxes.append(_obj_to_box(obj, canvas_w, canvas_h, class_key=None, source="manual"))
@@ -364,10 +385,23 @@ def render_editor(it, assessment, threshold):
         elif len(objects) == len(boxes):
             # same boxes, sync any moved/resized geometry into our
             # bookkeeping only — fabric_key stays as-is so the canvas isn't
-            # force-reloaded out from under an in-progress drag.
+            # force-reloaded out from under an in-progress drag. This exact
+            # match is also what confirms the canvas has caught up with our
+            # current seed, so a *later* surplus report can be trusted.
+            st.session_state[synced_key] = True
             for i, obj in enumerate(objects):
                 boxes[i]["box"] = _obj_to_box(
                     obj, canvas_w, canvas_h, boxes[i]["class_key"], boxes[i]["source"])["box"]
+        # (len(objects) > len(boxes) but not yet synced_key: deliberately
+        # ignored, same reasoning as synced_key's own comment above — a box
+        # can't have been genuinely hand-drawn before the canvas has ever
+        # echoed our current seed back cleanly, so trusting it here is how
+        # a handful of phantom, unclassed boxes used to get permanently
+        # written into a fresh photo's session state the moment its editor
+        # was opened. If this ever fires for a real fast double-click draw
+        # right at mount, it isn't lost -- it's still live on the user's
+        # own canvas and gets reported (and trusted) again on their very
+        # next interaction, once synced_key has flipped True.
         # else (fewer objects reported than we're tracking): deliberately
         # ignored. The component reports the canvas's contents back to
         # Streamlit on every mouse-up, and that can fire from a plain click
@@ -408,6 +442,7 @@ def render_editor(it, assessment, threshold):
                 if st.button("✕", key=f"rm_{key}_{i}_{st.session_state[version_key]}"):
                     boxes.pop(i)
                     st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h, background_image=it["image"])
+                    st.session_state[synced_key] = False
                     st.session_state[version_key] += 1
                     st.rerun()
 
