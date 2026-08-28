@@ -16,7 +16,9 @@ produced the original detection, so corrections stay meaningful no matter
 which run is loaded when they're made.
 """
 
+import base64
 import csv
+import io
 import time
 from pathlib import Path
 
@@ -31,81 +33,9 @@ for _old, _new in (("bool8", "bool_"), ("object0", "object_"), ("int0", "intp"),
     if not hasattr(np, _old):
         setattr(np, _old, getattr(np, _new))
 
-# streamlit-drawable-canvas also calls a private Streamlit helper —
-# streamlit.elements.image.image_to_url() — that newer Streamlit releases
-# removed entirely. Shim it back in, serving the image as a plain static
-# file rather than a data: URI or Streamlit's per-session MediaFileManager
-# (both tried first, both wrong — see below).
-#
-# - A self-contained data: URI doesn't work: the canvas frontend always
-#   does `<streamlit app origin> + backgroundImageURL` itself (confirmed by
-#   reading streamlit's own ComponentInstance JS — it unconditionally adds
-#   `?streamlitUrl=<origin>` to every custom component's iframe URL, so
-#   that origin is never blank in a real deployment), and origin + a data:
-#   URI is not a URL anything can load.
-# - Streamlit's real MediaFileManager (what `st.image()` itself uses, and
-#   what this shim used at first) looked right but isn't: it drops a
-#   session's file registrations at the start of *every* full rerun and
-#   only keeps whatever gets re-registered *during* that same run
-#   (streamlit/runtime/media_file_manager.py). That's fine for `st.image`,
-#   which re-registers on every run where it's actually called — but here
-#   it meant the instant a rerun happened without this exact photo's editor
-#   re-registering it (viewing a different photo, flipping a widget
-#   elsewhere on the page, the app waking up from idle), the file was
-#   purged; reopening this photo's editor later would send the browser a
-#   URL that had already 404'd. That's the "boxes are there, photo isn't"
-#   bug this replaced.
-#
-# A plain static file sidesteps both: it's just bytes on disk at a fixed
-# path, nobody's session-tracking it or sweeping it up between runs.
-# Requires enableStaticServing=true in .streamlit/config.toml.
-import re
-
-import streamlit.elements.image as _st_image_module
-from PIL import Image as _PILImage
-
-_STATIC_BG_DIR = Path(__file__).resolve().parent / "static" / "annotate_bg"
-_STATIC_BG_MAX_FILES = 200  # light cap so this cache doesn't grow forever across a long session
-
-if not hasattr(_st_image_module, "image_to_url"):
-    def _image_to_url(image, width=None, clamp=False, channels="RGB", output_format="auto", image_id=None, **_kwargs):
-        img = image if isinstance(image, _PILImage.Image) else _PILImage.fromarray(image)
-        if img.mode not in ("RGB", "RGBA"):
-            img = img.convert("RGB")
-
-        # image_id is already a content-hash-based identifier the caller
-        # built for us (streamlit-drawable-canvas passes
-        # f"drawable-canvas-bg-{md5(image bytes)}-{key}") — reuse it as the
-        # filename so the same photo/size always maps to the same file
-        # (no duplicate writes) instead of hashing it ourselves again.
-        stem = re.sub(r"[^A-Za-z0-9_-]", "_", image_id or "bg") or "bg"
-        _STATIC_BG_DIR.mkdir(parents=True, exist_ok=True)
-        file_path = _STATIC_BG_DIR / f"{stem}.png"
-        if not file_path.exists():
-            img.save(file_path, format="PNG")
-            _prune_static_bg_cache()
-        return f"/app/static/annotate_bg/{file_path.name}"
-    _st_image_module.image_to_url = _image_to_url
-
-
-def _prune_static_bg_cache():
-    """Keep data/corrections'-adjacent static/annotate_bg/ from growing
-    without bound over a long-running session — drop the oldest files once
-    there are more than _STATIC_BG_MAX_FILES of them."""
-    try:
-        files = sorted(_STATIC_BG_DIR.glob("*.png"), key=lambda p: p.stat().st_mtime)
-    except OSError:
-        return
-    for f in files[:-_STATIC_BG_MAX_FILES] if len(files) > _STATIC_BG_MAX_FILES else []:
-        try:
-            f.unlink()
-        except OSError:
-            pass
-
-from streamlit_drawable_canvas import st_canvas  # noqa: E402  (must follow the shims above)
+from streamlit_drawable_canvas import st_canvas  # noqa: E402  (must follow the numpy shim above)
 
 import detector  # noqa: E402
-import view_helpers as vh  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent  # this repo's root (flattened out of streamlit_app/)
 CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections"
@@ -149,10 +79,52 @@ def seed_boxes(assessment):
     return boxes
 
 
-def boxes_to_fabric(boxes, canvas_w, canvas_h):
+_BOX_STROKE_WIDTH = 4  # was 3 -- still thinner than read-mode's baked-in boxes (7-11px at this
+                        # canvas size), deliberately: this stroke also has to stay precisely
+                        # draggable/resizable, which a much heavier line makes harder to judge.
+
+
+def _image_to_data_uri(image):
+    """PIL image -> a self-contained data: URI. Embedding the editor's
+    background photo straight into the Fabric.js JSON this way (see
+    boxes_to_fabric below) means the browser never has to fetch it
+    separately at all -- no server-side registration, nothing to garbage
+    collect, nothing that can 404. That ruled out two earlier approaches:
+    Streamlit's MediaFileManager purges a session's file registrations at
+    the start of every full rerun and only keeps what gets re-touched
+    *during* that same run, so any rerun that didn't re-render this exact
+    photo's editor (viewing a different photo, any widget elsewhere on the
+    page, the app waking from idle) silently purged it. A plain static
+    file avoided that, but Streamlit Community Cloud's own docs are
+    explicit that files an app *writes while running* aren't reliably
+    served there -- only ones already committed to the repo -- which is
+    why that worked locally and not in production.
+
+    A data: URI passed here (rather than through st_canvas's own
+    background_image= parameter) sidesteps both: that parameter always
+    routes through Streamlit's real image_to_url(), and the canvas
+    frontend unconditionally does `<app origin> + backgroundImageURL`
+    itself, which corrupts a data: URI (confirmed by reading Streamlit's
+    own component-loading JS -- it always appends `?streamlitUrl=<origin>`
+    to a custom component's iframe URL). Fabric.js's own JSON-based
+    background image (a plain `img.src = url` load, per its source) has no
+    such prefixing, so a data: URI works there without any of this."""
+    buf = io.BytesIO()
+    image.convert("RGB").save(buf, format="JPEG", quality=88)
+    return f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
+
+
+def boxes_to_fabric(boxes, canvas_w, canvas_h, background_image=None):
     """corrected-box list (normalized 0-1 xyxy) -> Fabric.js initial_drawing
     for st_canvas. AI-sourced boxes are drawn solid, hand-drawn ones dashed,
-    so it's obvious at a glance which is which while you're correcting."""
+    so it's obvious at a glance which is which while you're correcting.
+
+    background_image, if given, is embedded as Fabric's own native
+    backgroundImage (see _image_to_data_uri) rather than passed through
+    st_canvas's background_image= parameter -- see that function's
+    docstring for why. Only needs setting once per fabric_key lifetime
+    (the photo itself never changes for a given correction session), not
+    recomputed on every rerun."""
     objects = []
     for b in boxes:
         x1, y1, x2, y2 = b["box"]
@@ -162,13 +134,21 @@ def boxes_to_fabric(boxes, canvas_w, canvas_h):
             "type": "rect",
             "left": x1 * canvas_w, "top": y1 * canvas_h,
             "width": max(2.0, (x2 - x1) * canvas_w), "height": max(2.0, (y2 - y1) * canvas_h),
-            "fill": "rgba(0,0,0,0)", "stroke": color, "strokeWidth": 3,
+            "fill": "rgba(0,0,0,0)", "stroke": color, "strokeWidth": _BOX_STROKE_WIDTH,
             "scaleX": 1, "scaleY": 1, "opacity": 1,
         }
         if b.get("source") == "manual":
             obj["strokeDashArray"] = [7, 5]
         objects.append(obj)
-    return {"version": "4.4.0", "objects": objects}
+    drawing = {"version": "4.4.0", "objects": objects}
+    if background_image is not None:
+        drawing["backgroundImage"] = {
+            "type": "image",
+            "src": _image_to_data_uri(background_image),
+            "left": 0, "top": 0, "originX": "left", "originY": "top",
+            "width": canvas_w, "height": canvas_h, "scaleX": 1, "scaleY": 1,
+        }
+    return drawing
 
 
 def boxes_to_raw(boxes):
@@ -318,7 +298,7 @@ def render_editor(it, assessment, threshold):
     # could see it. So this is only (re)built at deliberate reset points
     # below; every other rerun hands the canvas back the exact same dict.
     if fabric_key not in st.session_state:
-        st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h)
+        st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h, background_image=it["image"])
 
     mc1, mc2, mc3 = st.columns([2, 2, 3])
     with mc1:
@@ -328,47 +308,28 @@ def render_editor(it, assessment, threshold):
     with mc2:
         if st.button("Reset to AI detections", key=f"reset_{key}"):
             st.session_state[store_key] = seed_boxes(assessment)
-            st.session_state[fabric_key] = boxes_to_fabric(st.session_state[store_key], canvas_w, canvas_h)
+            st.session_state[fabric_key] = boxes_to_fabric(
+                st.session_state[store_key], canvas_w, canvas_h, background_image=it["image"])
             st.session_state[version_key] += 1
             st.rerun()
     with mc3:
         st.caption(f"{len(boxes)} box{'es' if len(boxes) != 1 else ''} on this photo — solid outline is the "
                     f"model's, dashed is hand-drawn. Drag anywhere to add a new box; switch to Move / resize to reposition one.")
 
-    # Read-mode-styled dark-chip text labels (P1, NO-Hardhat 1.00, ...)
-    # baked into the background, built from the LIVE `boxes` list rather
-    # than the `assessment` argument (which is only the last *saved*
-    # state) so a box you just drew or reclassified gets its label
-    # immediately, before you've hit Save. This was tried once before and
-    # reverted -- not because baking in labels was the wrong idea, but
-    # because the background image itself was, at the time, silently
-    # failing to show up at all on Streamlit Cloud (see the image_to_url
-    # shim above: it was registering the photo with Streamlit's
-    # MediaFileManager, which doesn't survive a rerun that doesn't
-    # re-touch it). That's now fixed by serving it as a static file
-    # instead, which is what made it safe to bring this back.
-    #
-    # show_outlines=False: unlike labels, every box's *outline* already
-    # exists as a live, draggable/resizable object one layer up (the
-    # canvas below draws them via boxes_to_fabric) -- baking a second
-    # copy of the same rectangle in here just put two outlines on screen
-    # that only agreed once a round trip after you stopped dragging.
-    # Mid-resize, the stale baked-in one was still showing the box's
-    # pre-drag position/size while the live one already reflected the
-    # drag, which read as a duplicate box rather than one changing size.
-    #
-    # Resize first, then draw -- draw_overlay's boxes are normalized
-    # (0-1) coordinates, so drawing on the already-canvas-sized image
-    # (instead of full resolution, then downscaling) keeps this cheap.
-    resized = it["image"].convert("RGB").resize((canvas_w, canvas_h))
-    live_assessment = detector.assess(boxes_to_raw(boxes), 0.0)
-    display_img = vh.draw_overlay(resized, live_assessment["persons"], show_boxes=True, show_labels=True,
-                                   show_outlines=False, detail=True)
+    # No labels baked into the photo here (that was tried -- see git
+    # history -- and dropped: a baked-in label sat behind the live,
+    # draggable box outlines one layer up, which always render on top
+    # regardless of draw order, so a nearby box's edge could cut across a
+    # label's text; and re-baking it after every drag/resize added a
+    # visible extra rerun). Plain photo, colors + the class list/swatches
+    # below the canvas are still how you tell boxes apart while editing.
+    # The background itself is embedded straight into fabric_key above
+    # (boxes_to_fabric's background_image=) rather than passed here via
+    # background_image=, so there's nothing to compute on this rerun.
     result = st_canvas(
         fill_color="rgba(0,0,0,0)",
-        stroke_width=2,
+        stroke_width=_BOX_STROKE_WIDTH,
         stroke_color=_UNASSIGNED_COLOR,
-        background_image=display_img,
         height=canvas_h, width=canvas_w,
         drawing_mode=mode,
         initial_drawing=st.session_state[fabric_key],
@@ -404,33 +365,9 @@ def render_editor(it, assessment, threshold):
             # same boxes, sync any moved/resized geometry into our
             # bookkeeping only — fabric_key stays as-is so the canvas isn't
             # force-reloaded out from under an in-progress drag.
-            moved = False
             for i, obj in enumerate(objects):
-                new_box = _obj_to_box(obj, canvas_w, canvas_h, boxes[i]["class_key"], boxes[i]["source"])["box"]
-                # >1px (in canvas terms) of actual movement, not the
-                # sub-pixel drift a box's own coordinates already pick up
-                # just from being round-tripped through JSON once (pixels
-                # -> normalized 0-1 float -> JSON -> back) even when
-                # nothing was dragged — an exact-equality check here would
-                # treat that drift as a move on every single rerun.
-                if any(abs(a - b) * dim > 1 for a, b, dim in
-                       zip(new_box, boxes[i]["box"], (canvas_w, canvas_h, canvas_w, canvas_h))):
-                    moved = True
-                boxes[i]["box"] = new_box
-            if moved:
-                # The label baked into display_img above was drawn *before*
-                # this sync, from wherever the box was before this drag —
-                # this rerun already streamed that stale bake to the browser
-                # as its own delta the moment st_canvas() was called, a few
-                # lines up, so the fix isn't to skip sending it (too late)
-                # but to immediately follow it with a second, corrected one.
-                # Rerunning now, with `boxes` already holding the post-drag
-                # position, means the *next* pass bakes the label where the
-                # box actually ended up instead of where it used to be —
-                # otherwise that stale label just sits there until whatever
-                # you do next (a different box, a class change, …) happens
-                # to trigger another rerun and drag it back into sync.
-                st.rerun()
+                boxes[i]["box"] = _obj_to_box(
+                    obj, canvas_w, canvas_h, boxes[i]["class_key"], boxes[i]["source"])["box"]
         # else (fewer objects reported than we're tracking): deliberately
         # ignored. The component reports the canvas's contents back to
         # Streamlit on every mouse-up, and that can fire from a plain click
@@ -470,7 +407,7 @@ def render_editor(it, assessment, threshold):
             with rc3:
                 if st.button("✕", key=f"rm_{key}_{i}_{st.session_state[version_key]}"):
                     boxes.pop(i)
-                    st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h)
+                    st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h, background_image=it["image"])
                     st.session_state[version_key] += 1
                     st.rerun()
 
