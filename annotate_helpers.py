@@ -335,25 +335,35 @@ def render_editor(it, assessment, threshold):
         st.caption(f"{len(boxes)} box{'es' if len(boxes) != 1 else ''} on this photo — solid outline is the "
                     f"model's, dashed is hand-drawn. Drag anywhere to add a new box; switch to Move / resize to reposition one.")
 
-    # Read-mode-styled background: the same colored outlines + dark-chip
-    # text labels (P1, NO-Hardhat 1.00, ...) as the results/detail read
-    # view (view_helpers.draw_overlay(detail=True)), built from the LIVE
-    # `boxes` list rather than the `assessment` argument (which is only
-    # the last *saved* state) so a box you just drew or reclassified gets
-    # its label immediately, before you've hit Save. This was tried once
-    # before and reverted -- not because baking in labels was the wrong
-    # idea, but because the background image itself was, at the time,
-    # silently failing to show up at all on Streamlit Cloud (see the
-    # image_to_url shim above: it was registering the photo with
-    # Streamlit's MediaFileManager, which doesn't survive a rerun that
-    # doesn't re-touch it). That's now fixed by serving it as a static
-    # file instead, which is what made it safe to bring this back.
+    # Read-mode-styled dark-chip text labels (P1, NO-Hardhat 1.00, ...)
+    # baked into the background, built from the LIVE `boxes` list rather
+    # than the `assessment` argument (which is only the last *saved*
+    # state) so a box you just drew or reclassified gets its label
+    # immediately, before you've hit Save. This was tried once before and
+    # reverted -- not because baking in labels was the wrong idea, but
+    # because the background image itself was, at the time, silently
+    # failing to show up at all on Streamlit Cloud (see the image_to_url
+    # shim above: it was registering the photo with Streamlit's
+    # MediaFileManager, which doesn't survive a rerun that doesn't
+    # re-touch it). That's now fixed by serving it as a static file
+    # instead, which is what made it safe to bring this back.
+    #
+    # show_outlines=False: unlike labels, every box's *outline* already
+    # exists as a live, draggable/resizable object one layer up (the
+    # canvas below draws them via boxes_to_fabric) -- baking a second
+    # copy of the same rectangle in here just put two outlines on screen
+    # that only agreed once a round trip after you stopped dragging.
+    # Mid-resize, the stale baked-in one was still showing the box's
+    # pre-drag position/size while the live one already reflected the
+    # drag, which read as a duplicate box rather than one changing size.
+    #
     # Resize first, then draw -- draw_overlay's boxes are normalized
     # (0-1) coordinates, so drawing on the already-canvas-sized image
     # (instead of full resolution, then downscaling) keeps this cheap.
     resized = it["image"].convert("RGB").resize((canvas_w, canvas_h))
     live_assessment = detector.assess(boxes_to_raw(boxes), 0.0)
-    display_img = vh.draw_overlay(resized, live_assessment["persons"], show_boxes=True, show_labels=True, detail=True)
+    display_img = vh.draw_overlay(resized, live_assessment["persons"], show_boxes=True, show_labels=True,
+                                   show_outlines=False, detail=True)
     result = st_canvas(
         fill_color="rgba(0,0,0,0)",
         stroke_width=2,

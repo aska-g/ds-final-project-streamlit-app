@@ -117,7 +117,7 @@ def _box_px(box, w, h):
     return (x1 * w, y1 * h, x2 * w, y2 * h)
 
 
-def draw_overlay(image, persons, selected_idx=None, show_boxes=True, show_labels=True, detail=False):
+def draw_overlay(image, persons, selected_idx=None, show_boxes=True, show_labels=True, show_outlines=True, detail=False):
     """Return a copy of `image` with person + item bounding boxes drawn on
     it. `persons` is the list from detector.assess()["persons"]. If
     selected_idx is set, every other person's boxes and labels are dimmed.
@@ -126,6 +126,16 @@ def draw_overlay(image, persons, selected_idx=None, show_boxes=True, show_labels
     only) — used for small thumbnails (results gallery, model comparison
     tiles) where the baked-in text shrinks past legible once the whole
     image is downscaled to thumbnail size.
+
+    show_outlines=False skips drawing the rectangle borders themselves
+    while still drawing labels — used by the manual-correction editor
+    (annotate_helpers.py), which already draws every box itself as a live,
+    draggable/resizable object on a separate layer on top of this image.
+    Baking a second copy of the same outline in here just meant two
+    slightly-out-of-sync rectangles on screen at once (this one only
+    catches up a round trip after the live one, so mid-drag it visibly
+    lagged behind — read as "duplicate boxes" while resizing) — labels
+    have no live equivalent, so those still belong here.
 
     detail=True is the single-photo detail-view styling: thicker outlines
     and the dark-chip/colored-text label treatment (see _draw_label) —
@@ -147,7 +157,8 @@ def draw_overlay(image, persons, selected_idx=None, show_boxes=True, show_labels
         alpha = 70 if dim else 255
         person_color = detector.CLASS_META["person"]["color"]
         px1, py1, px2, py2 = _box_px(p["box"], w, h)
-        draw.rectangle((px1, py1, px2, py2), outline=_hex_to_rgba(person_color, alpha), width=person_width)
+        if show_outlines:
+            draw.rectangle((px1, py1, px2, py2), outline=_hex_to_rgba(person_color, alpha), width=person_width)
         if show_labels:
             _draw_label(draw, px1, py1, f"P{i + 1}", person_color, alpha, font, align="left", detail=detail)
 
@@ -157,7 +168,8 @@ def draw_overlay(image, persons, selected_idx=None, show_boxes=True, show_labels
                 continue
             meta = detector.CLASS_META[st_["class_key"]]
             ix1, iy1, ix2, iy2 = _box_px(st_["box"], w, h)
-            draw.rectangle((ix1, iy1, ix2, iy2), outline=_hex_to_rgba(meta["color"], alpha), width=item_width)
+            if show_outlines:
+                draw.rectangle((ix1, iy1, ix2, iy2), outline=_hex_to_rgba(meta["color"], alpha), width=item_width)
             if show_labels:
                 label = f"{meta['label']} {st_['conf']:.2f}" if st_.get("conf") is not None else meta["label"]
                 _draw_label(draw, ix1, iy1, label, meta["color"], alpha, font, detail=detail)
