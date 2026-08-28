@@ -1,0 +1,389 @@
+"""HI-VIS — manual correction / annotation helpers for the image detail view.
+
+Lets a reviewer fix a wrong AI label directly on a photo — draw a box the
+model missed, move or resize one it drew in the wrong place, delete a
+spurious one, or just relabel its class — using an interactive canvas
+(streamlit-drawable-canvas). This is deliberately Roboflow-Annotate-shaped:
+select an object, correct it, save it.
+
+Saved corrections are written as a small YOLO-format dataset under
+data/corrections/ — images/ + labels/ + data.yaml, the same layout as every
+other dataset under data/ (see data/merged/) — so a teammate can review
+them and fold them into a future training run the same way data/merged was
+assembled from other sources. The class list/order used here is fixed
+(CORRECTION_CLASS_KEYS below) and independent of whichever trained model
+produced the original detection, so corrections stay meaningful no matter
+which run is loaded when they're made.
+"""
+
+import csv
+import time
+from pathlib import Path
+
+import numpy as np
+import streamlit as st
+
+# streamlit-drawable-canvas (last released for an older numpy) references
+# a few numpy aliases — bool8, object0, int0, uint0 — that numpy>=1.24
+# removed. This project pins numpy==2.x, so shim them back in before the
+# component's import runs, rather than pinning numpy down for one component.
+for _old, _new in (("bool8", "bool_"), ("object0", "object_"), ("int0", "intp"), ("uint0", "uintp")):
+    if not hasattr(np, _old):
+        setattr(np, _old, getattr(np, _new))
+
+# streamlit-drawable-canvas also calls a private Streamlit helper —
+# streamlit.elements.image.image_to_url() — that newer Streamlit releases
+# removed entirely. Shim it back in with our own data-URI implementation
+# (good enough for a canvas background image) rather than pin Streamlit
+# down for the sake of one component.
+import base64
+import io
+
+import streamlit.elements.image as _st_image_module
+from PIL import Image as _PILImage
+
+if not hasattr(_st_image_module, "image_to_url"):
+    def _image_to_url(image, width=None, clamp=False, channels="RGB", output_format="auto", image_id=None, **_kwargs):
+        # streamlit-drawable-canvas's frontend does `pageOrigin + backgroundImageURL`
+        # itself, expecting the *relative* media path old Streamlit's image_to_url
+        # used to return (e.g. "/media/xyz.png") — a self-contained data: URI here
+        # gets corrupted by that concatenation and the background silently never
+        # loads. So register the bytes with Streamlit's real media file manager
+        # (the same one st.image() uses) and return an actual relative URL,
+        # matching that contract exactly instead of working around it.
+        img = image if isinstance(image, _PILImage.Image) else _PILImage.fromarray(image)
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        data = buf.getvalue()
+        coordinates = image_id or "annotate-helpers-bg"
+        try:
+            from streamlit import runtime
+            if runtime.exists():
+                return runtime.get_instance().media_file_mgr.add(data, "image/png", coordinates)
+        except Exception:
+            pass
+        # Fallback for the rare case there's no live Streamlit runtime to
+        # register with (e.g. a script check outside `streamlit run`) — a
+        # data URI at least won't crash the caller, even though it won't
+        # actually display as a canvas background for the reason above.
+        b64 = base64.b64encode(data).decode("ascii")
+        return f"data:image/png;base64,{b64}"
+    _st_image_module.image_to_url = _image_to_url
+
+from streamlit_drawable_canvas import st_canvas  # noqa: E402  (must follow the shims above)
+
+import detector  # noqa: E402
+
+REPO_ROOT = Path(__file__).resolve().parent  # this repo's root (flattened out of streamlit_app/)
+CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections"
+CORRECTIONS_IMAGES = CORRECTIONS_DIR / "images"
+CORRECTIONS_LABELS = CORRECTIONS_DIR / "labels"
+MANIFEST_PATH = CORRECTIONS_DIR / "manifest.csv"
+
+# Fixed class order for the corrections dataset — sourced from
+# detector.CLASS_META (the one place class names/colors are defined, per
+# its own docstring) so this never drifts out of sync with the detector.
+CORRECTION_CLASS_KEYS = list(detector.CLASS_META.keys())
+CLASS_KEY_TO_ID = {k: i for i, k in enumerate(CORRECTION_CLASS_KEYS)}
+
+_UNASSIGNED_COLOR = "#EFE600"  # safety yellow — used for a freshly drawn, not-yet-classed box
+
+
+def _canvas_size(image, max_w=900):
+    """Pick a display size for the canvas — capped at max_w so it doesn't
+    blow past the column, never upscaled for a smaller photo. Kept fixed
+    for the lifetime of an editing session on this photo so normalized
+    (0-1) coordinates stay consistent between reruns."""
+    w, h = image.size
+    if w <= max_w:
+        return w, h
+    scale = max_w / w
+    return max_w, max(1, round(h * scale))
+
+
+def seed_boxes(assessment):
+    """Build the starting corrected-box list from the AI's own detections —
+    one entry per person box, plus one per item slot that was actually
+    detected (present or missing) — 'not visible' slots have no box to
+    seed, and are exactly the case a reviewer would draw a new box for."""
+    boxes = []
+    for p in assessment.get("persons", []):
+        boxes.append({"class_key": "person", "box": p["box"], "source": "ai"})
+        for slot, st_ in p["status"].items():
+            if st_["state"] == "notvisible" or not st_.get("box"):
+                continue
+            boxes.append({"class_key": st_["class_key"], "box": st_["box"], "source": "ai"})
+    return boxes
+
+
+def boxes_to_fabric(boxes, canvas_w, canvas_h):
+    """corrected-box list (normalized 0-1 xyxy) -> Fabric.js initial_drawing
+    for st_canvas. AI-sourced boxes are drawn solid, hand-drawn ones dashed,
+    so it's obvious at a glance which is which while you're correcting."""
+    objects = []
+    for b in boxes:
+        x1, y1, x2, y2 = b["box"]
+        meta = detector.CLASS_META.get(b["class_key"])
+        color = meta["color"] if meta else _UNASSIGNED_COLOR
+        obj = {
+            "type": "rect",
+            "left": x1 * canvas_w, "top": y1 * canvas_h,
+            "width": max(2.0, (x2 - x1) * canvas_w), "height": max(2.0, (y2 - y1) * canvas_h),
+            "fill": "rgba(0,0,0,0)", "stroke": color, "strokeWidth": 3,
+            "scaleX": 1, "scaleY": 1, "opacity": 1,
+        }
+        if b.get("source") == "manual":
+            obj["strokeDashArray"] = [7, 5]
+        objects.append(obj)
+    return {"version": "4.4.0", "objects": objects}
+
+
+def boxes_to_raw(boxes):
+    """corrected-box list -> the same {"key", "conf", "box"} shape
+    detector.detect_raw() produces, at full confidence (these are now
+    ground truth, not a model guess) — lets a saved correction be run back
+    through detector.assess() so the corrected boxes drive the compliance
+    verdict, overlay, exception log, everywhere it["assessment"] is used."""
+    return [{"key": b["class_key"], "conf": 1.0, "box": b["box"]}
+            for b in boxes if b["class_key"] is not None]
+
+
+def _obj_to_box(obj, canvas_w, canvas_h, class_key, source):
+    """One Fabric.js object (post-interaction) -> a normalized xyxy box,
+    accounting for Fabric expressing a resize as scaleX/scaleY rather than
+    changed width/height."""
+    w = obj.get("width", 0) * obj.get("scaleX", 1)
+    h = obj.get("height", 0) * obj.get("scaleY", 1)
+    x1, y1 = obj.get("left", 0), obj.get("top", 0)
+    x2, y2 = x1 + w, y1 + h
+    return {
+        "class_key": class_key,
+        "box": (max(0.0, min(1.0, x1 / canvas_w)), max(0.0, min(1.0, y1 / canvas_h)),
+                max(0.0, min(1.0, x2 / canvas_w)), max(0.0, min(1.0, y2 / canvas_h))),
+        "source": source,
+    }
+
+
+def _write_data_yaml():
+    names = "\n".join(f"- {detector.CLASS_META[k]['label']}" for k in CORRECTION_CLASS_KEYS)
+    (CORRECTIONS_DIR / "data.yaml").write_text(
+        f"# Auto-generated by annotate_helpers.save_correction — matches the\n"
+        f"# images/ + labels/ layout every other dataset under data/ uses.\n"
+        f"names:\n{names}\nnc: {len(CORRECTION_CLASS_KEYS)}\n"
+        f"train: images\nval: images\n"
+    )
+
+
+def _append_manifest(source_name, stem, model_label, threshold, n_boxes):
+    is_new = not MANIFEST_PATH.exists()
+    with open(MANIFEST_PATH, "a", newline="") as f:
+        writer = csv.writer(f)
+        if is_new:
+            writer.writerow(["source_file", "saved_stem", "saved_at", "model_label", "threshold", "n_boxes"])
+        writer.writerow([source_name, stem, time.strftime("%Y-%m-%d %H:%M:%S"), model_label, f"{threshold:.2f}", n_boxes])
+
+
+def _stem_for(source_name):
+    """Filename stem a correction is keyed by — shared by save and load so
+    a photo re-uploaded later is matched against its own saved correction."""
+    return Path(source_name).stem.replace(" ", "_") or "photo"
+
+
+def load_existing_correction(source_name):
+    """If source_name already has a saved correction under
+    data/corrections/labels/, load it back as a corrected-box list. Called
+    when a photo is (re-)uploaded, so a fresh browser session — or just
+    re-adding the same file to a new batch — picks up a correction you
+    already saved instead of reverting to the raw AI output. Returns None
+    if there's nothing on disk for this filename yet."""
+    label_path = CORRECTIONS_LABELS / f"{_stem_for(source_name)}.txt"
+    if not label_path.exists():
+        return None
+    boxes = []
+    for line in label_path.read_text().splitlines():
+        parts = line.split()
+        if len(parts) != 5:
+            continue
+        try:
+            cid = int(parts[0])
+            cx, cy, w, h = (float(v) for v in parts[1:])
+        except ValueError:
+            continue
+        if not (0 <= cid < len(CORRECTION_CLASS_KEYS)):
+            continue
+        x1, y1, x2, y2 = cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2
+        boxes.append({
+            "class_key": CORRECTION_CLASS_KEYS[cid],
+            "box": (max(0.0, min(1.0, x1)), max(0.0, min(1.0, y1)),
+                    max(0.0, min(1.0, x2)), max(0.0, min(1.0, y2))),
+            "source": "ai",
+        })
+    return boxes
+
+
+def save_correction(image, boxes, source_name, model_label, threshold):
+    """Write the image + a YOLO-format label file into data/corrections/,
+    and log a manifest row. A second save for the same source filename
+    overwrites the image/label pair in place (manifest keeps every save as
+    history) — corrections are meant to reflect your latest pass, not pile
+    up as duplicates."""
+    CORRECTIONS_IMAGES.mkdir(parents=True, exist_ok=True)
+    CORRECTIONS_LABELS.mkdir(parents=True, exist_ok=True)
+
+    stem = _stem_for(source_name)
+    img_path = CORRECTIONS_IMAGES / f"{stem}.jpg"
+    label_path = CORRECTIONS_LABELS / f"{stem}.txt"
+
+    image.convert("RGB").save(img_path, format="JPEG", quality=92)
+
+    lines = []
+    for b in boxes:
+        if b["class_key"] is None:
+            continue
+        x1, y1, x2, y2 = b["box"]
+        w, h = x2 - x1, y2 - y1
+        if w <= 0 or h <= 0:
+            continue
+        cx, cy = x1 + w / 2, y1 + h / 2
+        cid = CLASS_KEY_TO_ID[b["class_key"]]
+        lines.append(f"{cid} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+    label_path.write_text("\n".join(lines) + ("\n" if lines else ""))
+
+    _write_data_yaml()
+    _append_manifest(source_name, stem, model_label, threshold, len(lines))
+    return img_path, label_path
+
+
+def render_editor(it, assessment, threshold):
+    """Render the interactive box editor for one photo in the detail view:
+    draw new boxes, move/resize existing ones, delete or relabel any box,
+    then save the corrected set as a YOLO label for later retraining."""
+    key = it["key"]
+    store_key = f"_corr_boxes_{key}"
+    version_key = f"_corr_version_{key}"
+    fabric_key = f"_corr_fabric_{key}"
+    st.session_state.setdefault(store_key, seed_boxes(assessment))
+    st.session_state.setdefault(version_key, 0)
+    boxes = st.session_state[store_key]
+
+    canvas_w, canvas_h = _canvas_size(it["image"])
+
+    # The canvas's own frontend reloads EVERYTHING from scratch whenever the
+    # initial_drawing it receives isn't byte-identical to what it already
+    # has — that's how it decides "did Python hand me a new seed". Recomputing
+    # initial_drawing from `boxes` on every rerun (as this used to do) meant
+    # the content drifted by float rounding on every round trip, so it never
+    # matched and the canvas reloaded (visibly blinking) after every single
+    # interaction — which also wiped out whatever you'd just drawn before you
+    # could see it. So this is only (re)built at deliberate reset points
+    # below; every other rerun hands the canvas back the exact same dict.
+    if fabric_key not in st.session_state:
+        st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h)
+
+    mc1, mc2, mc3 = st.columns([2, 2, 3])
+    with mc1:
+        mode_label = st.radio("Mode", ["Move / resize", "Draw new box"], key=f"mode_{key}",
+                               label_visibility="collapsed")
+    mode = "transform" if mode_label == "Move / resize" else "rect"
+    with mc2:
+        if st.button("Reset to AI detections", key=f"reset_{key}"):
+            st.session_state[store_key] = seed_boxes(assessment)
+            st.session_state[fabric_key] = boxes_to_fabric(st.session_state[store_key], canvas_w, canvas_h)
+            st.session_state[version_key] += 1
+            st.rerun()
+    with mc3:
+        st.caption(f"{len(boxes)} box{'es' if len(boxes) != 1 else ''} on this photo — solid outline is the "
+                    f"model's, dashed is hand-drawn. Move/resize drags any box; switch to Draw new box to add one.")
+
+    display_img = it["image"].convert("RGB").resize((canvas_w, canvas_h))
+    result = st_canvas(
+        fill_color="rgba(0,0,0,0)",
+        stroke_width=2,
+        stroke_color=_UNASSIGNED_COLOR,
+        background_image=display_img,
+        height=canvas_h, width=canvas_w,
+        drawing_mode=mode,
+        initial_drawing=st.session_state[fabric_key],
+        update_streamlit=True,
+        key=f"canvas_{key}_{st.session_state[version_key]}",
+    )
+
+    if result is not None and result.json_data is not None:
+        objects = result.json_data.get("objects", [])
+        if len(objects) > len(boxes):
+            # one or more new rectangles appended at the end. The canvas
+            # already has these live on screen — we only need our own
+            # bookkeeping (for the class list below and for saving), so
+            # fabric_key is deliberately left untouched here.
+            for obj in objects[len(boxes):]:
+                boxes.append(_obj_to_box(obj, canvas_w, canvas_h, class_key=None, source="manual"))
+        elif len(objects) == len(boxes):
+            # same boxes, sync any moved/resized geometry into our
+            # bookkeeping only — fabric_key stays as-is so the canvas isn't
+            # force-reloaded out from under an in-progress drag.
+            for i, obj in enumerate(objects):
+                boxes[i]["box"] = _obj_to_box(
+                    obj, canvas_w, canvas_h, boxes[i]["class_key"], boxes[i]["source"])["box"]
+        # else (fewer objects reported than we're tracking): deliberately
+        # ignored. The component reports the canvas's contents back to
+        # Streamlit on every mouse-up, and that can fire from a plain click
+        # before the async load of the seeded AI boxes has actually
+        # finished — a real "0 objects" snapshot mid-load, not the user
+        # clearing anything. Treating that as "the boxes are gone" (as
+        # this used to) meant it got written back as the new seed and the
+        # AI boxes never came back, which is why they disappeared and
+        # every draw attempt afterward kept landing on that same emptied
+        # state. Double-clicking a box in Move/resize mode does delete it
+        # on the canvas (that's Fabric's own behavior), but as a result
+        # isn't reflected back into this bookkeeping — use the ✕ button
+        # below for a delete that's guaranteed to stick.
+
+    if not boxes:
+        st.info("No boxes yet. Switch to **Draw new box** and drag a rectangle over anything the model missed.")
+    else:
+        st.caption("Class per box — required before you can save:")
+        options = [None] + CORRECTION_CLASS_KEYS
+        for i, b in enumerate(list(boxes)):
+            rc1, rc2, rc3 = st.columns([1, 6, 1])
+            meta = detector.CLASS_META.get(b["class_key"])
+            color = meta["color"] if meta else _UNASSIGNED_COLOR
+            with rc1:
+                st.markdown(f'<div style="width:20px;height:20px;background:{color};margin-top:8px;'
+                             f'border:1px solid #141414"></div>', unsafe_allow_html=True)
+            with rc2:
+                sel = st.selectbox(
+                    f"Box {i + 1} class",
+                    options,
+                    index=options.index(b["class_key"]) if b["class_key"] in options else 0,
+                    format_func=lambda k: "— select class —" if k is None else detector.CLASS_META[k]["label"],
+                    key=f"class_{key}_{i}_{st.session_state[version_key]}",
+                    label_visibility="collapsed",
+                )
+                boxes[i]["class_key"] = sel
+            with rc3:
+                if st.button("✕", key=f"rm_{key}_{i}_{st.session_state[version_key]}"):
+                    boxes.pop(i)
+                    st.session_state[fabric_key] = boxes_to_fabric(boxes, canvas_w, canvas_h)
+                    st.session_state[version_key] += 1
+                    st.rerun()
+
+    unassigned = sum(1 for b in boxes if b["class_key"] is None)
+    sc1, sc2 = st.columns([2, 3])
+    with sc1:
+        if unassigned:
+            st.warning(f"{unassigned} box{'es' if unassigned != 1 else ''} still need a class.")
+        if st.button("💾 Save corrected labels", disabled=(unassigned > 0 or not boxes),
+                      key=f"save_{key}", type="primary"):
+            save_correction(it["image"], boxes, it["name"], detector.MODEL_LABEL, threshold)
+            snapshot = [dict(b) for b in boxes]
+            st.session_state._detections[key]["corrected"] = True
+            st.session_state._detections[key]["corrected_boxes"] = snapshot
+            it["corrected"] = True
+            it["corrected_boxes"] = snapshot
+            st.toast(f"Saved corrected labels for {it['name']} — now shown everywhere as this photo's truth.")
+            st.rerun()
+    with sc2:
+        st.caption("Saved to `data/corrections/` as an image + YOLO label pair, "
+                    "ready to fold into a future training run.")
