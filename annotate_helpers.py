@@ -314,10 +314,19 @@ def render_editor(it, assessment, threshold):
     # was true when the editor first opened. The Fabric rectangles drawn on
     # top of it are what's actually interactive; the background is purely
     # a labeled reference image underneath them.
+    # Resize FIRST, then draw the overlay on the already-small canvas-sized
+    # copy -- not the other way around. draw_overlay's box/label drawing
+    # (text metrics, chip fills, alpha compositing) runs on every single
+    # rerun (any interaction anywhere on the page, not just a box edit), and
+    # doing that at full photo resolution (a phone photo can be several
+    # megapixels) before throwing most of those pixels away on resize was
+    # slow enough on a shared Streamlit Cloud instance to make the canvas's
+    # background-image fetch visibly lag -- which showed up as the photo
+    # itself blanking out while editing. Same visual result, far less work.
     live_raw = boxes_to_raw(boxes)
     live_assessment = detector.assess(live_raw, 0.0, required=())
-    labeled_image = vh.draw_overlay(it["image"], live_assessment["persons"], detail=True)
-    display_img = labeled_image.convert("RGB").resize((canvas_w, canvas_h))
+    small_image = it["image"].convert("RGB").resize((canvas_w, canvas_h))
+    display_img = vh.draw_overlay(small_image, live_assessment["persons"], detail=True)
     result = st_canvas(
         fill_color="rgba(0,0,0,0)",
         stroke_width=2,
