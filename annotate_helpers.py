@@ -33,44 +33,74 @@ for _old, _new in (("bool8", "bool_"), ("object0", "object_"), ("int0", "intp"),
 
 # streamlit-drawable-canvas also calls a private Streamlit helper —
 # streamlit.elements.image.image_to_url() — that newer Streamlit releases
-# removed entirely. Shim it back in with our own data-URI implementation
-# (good enough for a canvas background image) rather than pin Streamlit
-# down for the sake of one component.
-import base64
-import io
+# removed entirely. Shim it back in, serving the image as a plain static
+# file rather than a data: URI or Streamlit's per-session MediaFileManager
+# (both tried first, both wrong — see below).
+#
+# - A self-contained data: URI doesn't work: the canvas frontend always
+#   does `<streamlit app origin> + backgroundImageURL` itself (confirmed by
+#   reading streamlit's own ComponentInstance JS — it unconditionally adds
+#   `?streamlitUrl=<origin>` to every custom component's iframe URL, so
+#   that origin is never blank in a real deployment), and origin + a data:
+#   URI is not a URL anything can load.
+# - Streamlit's real MediaFileManager (what `st.image()` itself uses, and
+#   what this shim used at first) looked right but isn't: it drops a
+#   session's file registrations at the start of *every* full rerun and
+#   only keeps whatever gets re-registered *during* that same run
+#   (streamlit/runtime/media_file_manager.py). That's fine for `st.image`,
+#   which re-registers on every run where it's actually called — but here
+#   it meant the instant a rerun happened without this exact photo's editor
+#   re-registering it (viewing a different photo, flipping a widget
+#   elsewhere on the page, the app waking up from idle), the file was
+#   purged; reopening this photo's editor later would send the browser a
+#   URL that had already 404'd. That's the "boxes are there, photo isn't"
+#   bug this replaced.
+#
+# A plain static file sidesteps both: it's just bytes on disk at a fixed
+# path, nobody's session-tracking it or sweeping it up between runs.
+# Requires enableStaticServing=true in .streamlit/config.toml.
+import re
 
 import streamlit.elements.image as _st_image_module
 from PIL import Image as _PILImage
 
+_STATIC_BG_DIR = Path(__file__).resolve().parent / "static" / "annotate_bg"
+_STATIC_BG_MAX_FILES = 200  # light cap so this cache doesn't grow forever across a long session
+
 if not hasattr(_st_image_module, "image_to_url"):
     def _image_to_url(image, width=None, clamp=False, channels="RGB", output_format="auto", image_id=None, **_kwargs):
-        # streamlit-drawable-canvas's frontend does `pageOrigin + backgroundImageURL`
-        # itself, expecting the *relative* media path old Streamlit's image_to_url
-        # used to return (e.g. "/media/xyz.png") — a self-contained data: URI here
-        # gets corrupted by that concatenation and the background silently never
-        # loads. So register the bytes with Streamlit's real media file manager
-        # (the same one st.image() uses) and return an actual relative URL,
-        # matching that contract exactly instead of working around it.
         img = image if isinstance(image, _PILImage.Image) else _PILImage.fromarray(image)
         if img.mode not in ("RGB", "RGBA"):
             img = img.convert("RGB")
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        data = buf.getvalue()
-        coordinates = image_id or "annotate-helpers-bg"
-        try:
-            from streamlit import runtime
-            if runtime.exists():
-                return runtime.get_instance().media_file_mgr.add(data, "image/png", coordinates)
-        except Exception:
-            pass
-        # Fallback for the rare case there's no live Streamlit runtime to
-        # register with (e.g. a script check outside `streamlit run`) — a
-        # data URI at least won't crash the caller, even though it won't
-        # actually display as a canvas background for the reason above.
-        b64 = base64.b64encode(data).decode("ascii")
-        return f"data:image/png;base64,{b64}"
+
+        # image_id is already a content-hash-based identifier the caller
+        # built for us (streamlit-drawable-canvas passes
+        # f"drawable-canvas-bg-{md5(image bytes)}-{key}") — reuse it as the
+        # filename so the same photo/size always maps to the same file
+        # (no duplicate writes) instead of hashing it ourselves again.
+        stem = re.sub(r"[^A-Za-z0-9_-]", "_", image_id or "bg") or "bg"
+        _STATIC_BG_DIR.mkdir(parents=True, exist_ok=True)
+        file_path = _STATIC_BG_DIR / f"{stem}.png"
+        if not file_path.exists():
+            img.save(file_path, format="PNG")
+            _prune_static_bg_cache()
+        return f"/app/static/annotate_bg/{file_path.name}"
     _st_image_module.image_to_url = _image_to_url
+
+
+def _prune_static_bg_cache():
+    """Keep data/corrections'-adjacent static/annotate_bg/ from growing
+    without bound over a long-running session — drop the oldest files once
+    there are more than _STATIC_BG_MAX_FILES of them."""
+    try:
+        files = sorted(_STATIC_BG_DIR.glob("*.png"), key=lambda p: p.stat().st_mtime)
+    except OSError:
+        return
+    for f in files[:-_STATIC_BG_MAX_FILES] if len(files) > _STATIC_BG_MAX_FILES else []:
+        try:
+            f.unlink()
+        except OSError:
+            pass
 
 from streamlit_drawable_canvas import st_canvas  # noqa: E402  (must follow the shims above)
 

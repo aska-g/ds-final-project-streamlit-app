@@ -4,3 +4,18 @@ primaryColor = "#141414"
 backgroundColor = "#E4E5E2"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#141414"
+
+[server]
+# The manual-correction editor (annotate_helpers.py) needs to show the
+# photo underneath the drawable-canvas box editor. streamlit-drawable-canvas
+# hands that image to Streamlit's own (long since removed) private
+# image_to_url() API, which annotate_helpers.py shims back in -- but this
+# flag additionally lets that shim serve the photo as a plain static file
+# instead of registering it with Streamlit's per-session MediaFileManager.
+# The MediaFileManager route worked at first but purged the file the
+# moment the script ran once without re-touching it (e.g. viewing a
+# different photo, or any rerun elsewhere in the app), so reopening the
+# same photo's editor later showed boxes with no photo underneath -- the
+# exact bug this was added to fix. A plain static file has no such
+# per-session lifecycle: once written it just stays put.
+enableStaticServing = true
