@@ -105,6 +105,7 @@ def _prune_static_bg_cache():
 from streamlit_drawable_canvas import st_canvas  # noqa: E402  (must follow the shims above)
 
 import detector  # noqa: E402
+import view_helpers as vh  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent  # this repo's root (flattened out of streamlit_app/)
 CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections"
@@ -334,14 +335,25 @@ def render_editor(it, assessment, threshold):
         st.caption(f"{len(boxes)} box{'es' if len(boxes) != 1 else ''} on this photo — solid outline is the "
                     f"model's, dashed is hand-drawn. Drag anywhere to add a new box; switch to Move / resize to reposition one.")
 
-    # Plain resized photo as the background -- reverted the labeled-overlay
-    # experiment (boxes_to_raw -> detector.assess -> draw_overlay baked into
-    # the background every rerun): it made the editor both slower and, on
-    # Streamlit Cloud, made the background image stop appearing at all. Box
-    # colors + the class list/swatches below the canvas are still there;
-    # this just isn't trying to bake read-mode-style text labels into the
-    # editable canvas image itself.
-    display_img = it["image"].convert("RGB").resize((canvas_w, canvas_h))
+    # Read-mode-styled background: the same colored outlines + dark-chip
+    # text labels (P1, NO-Hardhat 1.00, ...) as the results/detail read
+    # view (view_helpers.draw_overlay(detail=True)), built from the LIVE
+    # `boxes` list rather than the `assessment` argument (which is only
+    # the last *saved* state) so a box you just drew or reclassified gets
+    # its label immediately, before you've hit Save. This was tried once
+    # before and reverted -- not because baking in labels was the wrong
+    # idea, but because the background image itself was, at the time,
+    # silently failing to show up at all on Streamlit Cloud (see the
+    # image_to_url shim above: it was registering the photo with
+    # Streamlit's MediaFileManager, which doesn't survive a rerun that
+    # doesn't re-touch it). That's now fixed by serving it as a static
+    # file instead, which is what made it safe to bring this back.
+    # Resize first, then draw -- draw_overlay's boxes are normalized
+    # (0-1) coordinates, so drawing on the already-canvas-sized image
+    # (instead of full resolution, then downscaling) keeps this cheap.
+    resized = it["image"].convert("RGB").resize((canvas_w, canvas_h))
+    live_assessment = detector.assess(boxes_to_raw(boxes), 0.0)
+    display_img = vh.draw_overlay(resized, live_assessment["persons"], show_boxes=True, show_labels=True, detail=True)
     result = st_canvas(
         fill_color="rgba(0,0,0,0)",
         stroke_width=2,
