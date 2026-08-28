@@ -12,6 +12,7 @@ import hashlib
 import time
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 import detector
 import view_helpers as vh
@@ -440,6 +441,32 @@ else:
     idx = idx_by_key[st.session_state.detail_key]
     it = items[idx]
     a = it["assessment"]
+
+    # Scroll to the top of the page whenever a genuinely different photo is
+    # shown (first opening the detail view, PREV/NEXT, NEXT EXC.) -- but not
+    # on every rerun this branch causes (toggling the edit switch, dragging
+    # a box, isolating a person), which would otherwise yank the page back
+    # to the top mid-interaction. Gated on the detail_key actually changing.
+    if st.session_state.get("_last_detail_key") != it["key"]:
+        st.session_state["_last_detail_key"] = it["key"]
+        components.html(
+            """
+            <script>
+            (function() {
+                const doc = window.parent.document;
+                const candidates = [
+                    doc.querySelector('section.main'),
+                    doc.querySelector('[data-testid="stAppViewContainer"]'),
+                    doc.querySelector('[data-testid="stMain"]'),
+                    doc.scrollingElement,
+                    window.parent,
+                ];
+                candidates.forEach((t) => { try { t.scrollTo(0, 0); } catch (e) {} });
+            })();
+            </script>
+            """,
+            height=0,
+        )
 
     top1, top2, top3 = st.columns([1, 4, 2])
     with top1:

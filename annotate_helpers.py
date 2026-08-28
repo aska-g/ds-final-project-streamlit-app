@@ -75,7 +75,6 @@ if not hasattr(_st_image_module, "image_to_url"):
 from streamlit_drawable_canvas import st_canvas  # noqa: E402  (must follow the shims above)
 
 import detector  # noqa: E402
-import view_helpers as vh  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent  # this repo's root (flattened out of streamlit_app/)
 CORRECTIONS_DIR = REPO_ROOT / "data" / "corrections"
@@ -305,28 +304,14 @@ def render_editor(it, assessment, threshold):
         st.caption(f"{len(boxes)} box{'es' if len(boxes) != 1 else ''} on this photo — solid outline is the "
                     f"model's, dashed is hand-drawn. Drag anywhere to add a new box; switch to Move / resize to reposition one.")
 
-    # Background shows the exact same labeled-box styling as the read-mode
-    # detail view (thicker outlines, dark-chip colored-text labels) — built
-    # fresh from the CURRENT `boxes` on every rerun (via the same
-    # boxes_to_raw -> detector.assess -> draw_overlay pipeline the
-    # corrected-photo view already uses elsewhere), so it stays in sync as
-    # you add, move, or reclassify boxes rather than freezing at whatever
-    # was true when the editor first opened. The Fabric rectangles drawn on
-    # top of it are what's actually interactive; the background is purely
-    # a labeled reference image underneath them.
-    # Resize FIRST, then draw the overlay on the already-small canvas-sized
-    # copy -- not the other way around. draw_overlay's box/label drawing
-    # (text metrics, chip fills, alpha compositing) runs on every single
-    # rerun (any interaction anywhere on the page, not just a box edit), and
-    # doing that at full photo resolution (a phone photo can be several
-    # megapixels) before throwing most of those pixels away on resize was
-    # slow enough on a shared Streamlit Cloud instance to make the canvas's
-    # background-image fetch visibly lag -- which showed up as the photo
-    # itself blanking out while editing. Same visual result, far less work.
-    live_raw = boxes_to_raw(boxes)
-    live_assessment = detector.assess(live_raw, 0.0, required=())
-    small_image = it["image"].convert("RGB").resize((canvas_w, canvas_h))
-    display_img = vh.draw_overlay(small_image, live_assessment["persons"], detail=True)
+    # Plain resized photo as the background -- reverted the labeled-overlay
+    # experiment (boxes_to_raw -> detector.assess -> draw_overlay baked into
+    # the background every rerun): it made the editor both slower and, on
+    # Streamlit Cloud, made the background image stop appearing at all. Box
+    # colors + the class list/swatches below the canvas are still there;
+    # this just isn't trying to bake read-mode-style text labels into the
+    # editable canvas image itself.
+    display_img = it["image"].convert("RGB").resize((canvas_w, canvas_h))
     result = st_canvas(
         fill_color="rgba(0,0,0,0)",
         stroke_width=2,
