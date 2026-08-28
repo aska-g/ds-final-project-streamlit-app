@@ -21,4 +21,10 @@ pillow
 numpy
 pandas
 ultralytics==8.4.127
+# ultralytics pulls in plain `opencv-python`, which needs GUI/X11 libraries
+# (libGL, libSM, libXext, libXrender, ...) that a headless server like
+# Streamlit Cloud does not have and packages.txt cannot cheaply supply. Listing
+# opencv-python-headless explicitly (same `cv2` module, none of the GUI deps)
+# is the standard fix for ultralytics on a server deployment.
+opencv-python-headless
 streamlit-drawable-canvas==0.9.3  # image-detail-view box editor (annotate_helpers.py); needs the numpy shim in that file under numpy>=1.24
