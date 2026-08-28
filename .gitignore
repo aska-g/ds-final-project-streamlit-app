@@ -5,4 +5,3 @@ __pycache__/
 venv
 .streamlit/secrets.toml
 data/corrections/
-static/annotate_bg/*.png
