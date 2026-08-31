@@ -265,7 +265,7 @@ else:
         customdata=[[d.isoformat()] for d in dates_sorted],
     ))
     fig1.update_layout(
-        height=340, margin=dict(l=10, r=10, t=10, b=10),
+        height=340, margin=dict(l=48, r=10, t=10, b=10),
         plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
         # One tick per day, dated (not timed), placed exactly at each
@@ -430,7 +430,7 @@ else:
             # the plot's) -- that + a real top margin is what puts visible
             # air between the legend row and the white plot box below it,
             # instead of the legend nearly overlapping it.
-            height=320, margin=dict(l=10, r=10, t=60, b=10),
+            height=320, margin=dict(l=48, r=10, t=60, b=10),
             barmode="group", bargap=0.25, bargroupgap=0.06,
             plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
             font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
