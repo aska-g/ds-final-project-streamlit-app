@@ -86,7 +86,14 @@ if pending:
         with c1:
             st.image(p["image"], width="stretch")
         with c2:
-            date_val = st.date_input("Date taken", value=dt.date.today(), key=f"tl_date_{key}")
+            # min/max deliberately wide open (not just Streamlit's default
+            # ~10-year window either side of value) -- this page is also used
+            # to pre-stage demo photos with a future date before the real day
+            # arrives, so a future date is a legitimate, intentional input here,
+            # never something to validate against.
+            date_val = st.date_input("Date taken", value=dt.date.today(),
+                                      min_value=dt.date(2000, 1, 1), max_value=dt.date(2100, 1, 1),
+                                      key=f"tl_date_{key}")
         with c3:
             time_val = st.time_input("Time taken", value=dt.datetime.now().time().replace(second=0, microsecond=0),
                                       step=300, key=f"tl_time_{key}")
