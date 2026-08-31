@@ -35,6 +35,8 @@ opencv-python-headless
 # maintained fork that patches exactly this, is a drop-in replacement (same
 # `from streamlit_drawable_canvas import st_canvas` import -- no code changes
 # needed elsewhere), and is what annotate_helpers.py's box editor now uses.
-streamlit-drawable-canvas-fix  # image-detail-view box editor (annotate_helpers.py); needs the numpy shim in that file under numpy>=1.24
+streamlit-drawable-canvas-fix  # image-detail-view box editor (annotate_helpers.py);
+# needs the numpy shim in that file under numpy>=1.24
 plotly  # historical-compliance trend charts (pages/historical.py) -- hover tooltips per
         # photo/date, which st.line_chart/st.bar_chart can't give us
+requests  # gemini_caption.py: scene descriptions via the Gemini REST API
