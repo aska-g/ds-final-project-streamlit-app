@@ -236,7 +236,7 @@ else:
 
     st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
     st.caption("Day's mean compliance. Click the marker to review photos.")
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
     day_photo_count = {d: len(mean_by_date[d]) for d in dates_sorted}
     day_text = [
@@ -265,7 +265,7 @@ else:
         customdata=[[d.isoformat()] for d in dates_sorted],
     ))
     fig1.update_layout(
-        height=340, margin=dict(l=48, r=10, t=10, b=10),
+        height=340, margin=dict(l=68, r=10, t=10, b=10),
         plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
         # One tick per day, dated (not timed), placed exactly at each
@@ -430,7 +430,7 @@ else:
             # the plot's) -- that + a real top margin is what puts visible
             # air between the legend row and the white plot box below it,
             # instead of the legend nearly overlapping it.
-            height=320, margin=dict(l=48, r=10, t=60, b=10),
+            height=320, margin=dict(l=68, r=10, t=60, b=10),
             barmode="group", bargap=0.25, bargroupgap=0.06,
             plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
             font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
