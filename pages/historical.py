@@ -64,6 +64,17 @@ st.markdown(
 
 _ALL_SLOTS = ("hardhat", "vest", "mask", "gloves", "boots")  # fixed order, matches pages/demo.py
 
+# Human-readable violation names for the chart below -- detector.CLASS_META's
+# own labels ("NO-Hardhat", "NO-Safety Vest") are built for the box editor's
+# on-image tags, not prose/legend text.
+_VIOLATION_LABELS = {
+    "hardhat": "Missing hardhat",
+    "vest": "Missing safety vest",
+    "mask": "Missing mask",
+    "gloves": "Missing gloves",
+    "boots": "Missing boots",
+}
+
 
 def _fmt_dt(d):
     """Full ISO datetime -> "2026-08-31 14:30" for hover text and the
@@ -297,8 +308,8 @@ tracked_slots = [s for s in _ALL_SLOTS if any(
 
 if tracked_slots:
     st.markdown('<div class="hv-h1" style="font-size:16px;margin:22px 0 2px">VIOLATIONS BY TYPE</div>', unsafe_allow_html=True)
-    st.caption("Count of missing-PPE findings per date, by item type -- one line per type, so a single "
-               "date reads as a point rather than one oddly-wide bar.")
+    st.caption("Count of missing-PPE findings per date, by item type -- grouped bars side by "
+               "side (not stacked), so each type's count is read straight off its own bar height.")
 
     by_date_slot = {}
     for r in dated_rows:
@@ -314,15 +325,16 @@ if tracked_slots:
     fig2 = go.Figure()
     for slot in tracked_slots:  # fixed order (matches _ALL_SLOTS) -- never cycled/reordered
         neg_key = detector.SLOT_ITEMS[slot][1]
-        meta = detector.CLASS_META[neg_key]
+        color = detector.CLASS_META[neg_key]["color"]
+        label = _VIOLATION_LABELS[slot]
         y = [by_date_slot[d][slot] for d in dates_sorted]
-        fig2.add_trace(go.Scatter(
-            x=dates_sorted, y=y, mode="lines+markers", name=meta["label"],
-            line=dict(color=meta["color"], width=2), marker=dict(size=9, color=meta["color"]),
-            hovertemplate=f"{meta['label']}: " + "%{y}<extra></extra>",
+        fig2.add_trace(go.Bar(
+            x=dates_sorted, y=y, name=label, marker=dict(color=color),
+            hovertemplate=f"{label}: " + "%{y}<extra></extra>",
         ))
     fig2.update_layout(
         height=320, margin=dict(l=10, r=10, t=10, b=10),
+        barmode="group", bargap=0.25, bargroupgap=0.06,
         plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
