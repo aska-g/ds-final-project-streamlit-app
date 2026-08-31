@@ -231,7 +231,7 @@ HV_STYLE_CSS = """
 html, body, [class*="css"] { font-family:'IBM Plex Sans',sans-serif; }
 .stApp { background:#E4E5E2; }
 #MainMenu { visibility:hidden; }
-.block-container { max-width:1400px; padding-top:2rem !important; }
+.block-container { max-width:1400px; padding-top:3rem !important; }
 .hv-mono { font-family:'IBM Plex Mono',monospace; }
 .hv-h1 { font-family:'Barlow Condensed',sans-serif; font-weight:800; letter-spacing:.5px; color:#141414; }
 @keyframes hvspin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }

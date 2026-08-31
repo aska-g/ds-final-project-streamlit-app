@@ -436,7 +436,13 @@ else:
                 plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
                 legend=dict(orientation="h", yanchor="top", y=1.21, xanchor="left", x=0),
-                xaxis=dict(showgrid=False, showline=False, tickfont=dict(color="#4A4B47")),
+                # Explicit ticktext, same as chart 1 -- Plotly's own date-tick
+                # auto-formatting shows the year on the first tick of a new
+                # year (e.g. "Sep 1 2026"), which reads as misaligned/inconsistent
+                # next to the plain "Sep 2" / "Sep 3" ticks beside it.
+                xaxis=dict(showgrid=False, showline=False, tickfont=dict(color="#4A4B47"),
+                           tickmode="array", tickvals=dates_sorted,
+                           ticktext=[d.strftime("%b %-d") for d in dates_sorted]),
                 # Zeroline (not the axis line) is the one visible baseline here --
                 # a plain axis line just below it read as a second, redundant line.
                 yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, tickfont=dict(color="#4A4B47"),
