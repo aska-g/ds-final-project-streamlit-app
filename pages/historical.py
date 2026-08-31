@@ -40,19 +40,18 @@ import timeline_helpers as th
 import view_helpers as vh
 
 st.markdown(vh.HV_STYLE_CSS, unsafe_allow_html=True)
-st.markdown(vh.header_html("HISTORICAL DATA", detector.MERGEDPEOPLE_LABEL), unsafe_allow_html=True)
+st.markdown(vh.header_html("HISTORICAL DATA", detector.V26_LABEL), unsafe_allow_html=True)
 
 # Pinned to this specific run rather than whatever HIVIS_MODEL_PATH the rest
-# of the app defaults to (detector.WEIGHTS_PATH) -- yolo26m_mergedpeople_150e
-# is the run trained to track people robustly, which is what this page's
-# whole premise (a compliance trend across a whole batch of photos) leans
-# on most. Note this only affects photos detected from here on: raw
-# detections are frozen into data/timeline/ at save time (see
-# timeline_helpers.save_entry), so anything already saved keeps whichever
-# model produced it -- re-upload a photo to redetect it with this one.
-model = detector.load_model(detector.MERGEDPEOPLE_WEIGHTS)
+# of the app defaults to (detector.WEIGHTS_PATH) -- see detector.py's own
+# comment on V26_WEIGHTS/yolo26s_css_100e for why this run over the others.
+# Note this only affects photos detected from here on: raw detections are
+# frozen into data/timeline/ at save time (see timeline_helpers.save_entry),
+# so anything already saved keeps whichever model produced it -- re-upload a
+# photo to redetect it with this one.
+model = detector.load_model(detector.V26_WEIGHTS)
 if model is None:
-    st.error(f"No trained weights found at `{detector.MERGEDPEOPLE_WEIGHTS}`. See the Demo page for how to restore them.")
+    st.error(f"No trained weights found at `{detector.V26_WEIGHTS}`. See the Demo page for how to restore them.")
     st.stop()
 
 st.markdown(
