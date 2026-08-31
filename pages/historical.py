@@ -357,10 +357,15 @@ else:
                                            show_labels=True, detail=True)
                 with day_cols[i % len(day_cols)]:
                     st.image(labeled, width="stretch")
+                    # padding-bottom so the verdict badge (and caption, when
+                    # present) get breathing room above the container's
+                    # border instead of sitting flush against it.
                     st.markdown(
+                        f'<div style="padding-bottom:14px">'
                         f'<div class="hv-mono" style="font-size:10.5px;color:#4A4B47">{_fmt_dt(r["dt"])}</div>'
                         f'{vh.verdict_badge(r["assessment"]["verdict"])}'
-                        + (f'<div style="font-size:11px;color:#71736D">{r["caption"]}</div>' if r["caption"] else ""),
+                        + (f'<div style="font-size:11px;color:#71736D">{r["caption"]}</div>' if r["caption"] else "")
+                        + '</div>',
                         unsafe_allow_html=True,
                     )
 
