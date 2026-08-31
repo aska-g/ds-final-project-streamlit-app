@@ -71,13 +71,7 @@ if model is None:
     st.error(f"No trained weights found at `{detector.V26_WEIGHTS}`. See the Demo page for how to restore them.")
     st.stop()
 
-st.markdown(
-    '<div style="font-size:12.5px;color:#4A4B47;margin-bottom:18px">Build a dated compliance '
-    'timeline from a series of site photos -- a week of CCTV stills, or repeat visits to the same '
-    'site -- by labeling each with the date it was taken. Saved here under '
-    '<code>data/timeline/</code>, separate from whatever batch is loaded on the Demo page.</div>',
-    unsafe_allow_html=True,
-)
+
 
 _ALL_SLOTS = ("hardhat", "vest", "mask", "gloves", "boots")  # fixed order, matches pages/demo.py
 
@@ -176,12 +170,7 @@ else:
         st.warning(f"{len(invalid)} timeline entr{'y has' if len(invalid) == 1 else 'ies have'} an unreadable date "
                    f"and are excluded from the chart below (still shown in the filmstrip).")
 
-    st.markdown(
-        f'<div style="font-size:12.5px;color:#4A4B47;margin-bottom:14px">Recomputed at threshold '
-        f'<b>{threshold:.2f}</b> using the same WHAT COUNTS AS COMPLIANT rule set as the Demo page. '
-        f'Change either there to see this update here.</div>',
-        unsafe_allow_html=True,
-    )
+
 
     # per-date mean compliance -- the line; individual photos -- the dots.
     # Two different questions ("what's the trend" vs "what's this one photo"),
@@ -242,7 +231,7 @@ else:
 
     st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
     st.caption("Line = mean compliance per date. Dots = individual photos, evenly spread across "
-               "each day in tagged order (hover for detail).")
+               "each day in tagged order -- click one to see that day's photos and analysis below.")
 
     # Evenly spread across the day (assumes ~3 photos/day, but works for any
     # per-day count) rather than plotted at each photo's literal tagged time --
@@ -278,6 +267,10 @@ else:
         x=point_x, y=point_y, mode="markers",
         marker=dict(size=10, color="#14213D", line=dict(color="#FFFFFF", width=2)),
         text=point_text, hovertemplate="%{text}<extra></extra>", showlegend=False,
+        # One day per point, wrapped in its own list per Plotly's customdata
+        # convention -- read back on click below to know which day to open,
+        # without having to reverse-engineer it from point_index/curve_number.
+        customdata=[[r["date"].isoformat()] for r in dated_rows],
     ))
     fig1.update_layout(
         height=340, margin=dict(l=10, r=10, t=10, b=10),
@@ -287,7 +280,101 @@ else:
         yaxis=dict(range=[0, 100], ticksuffix="%", gridcolor="#E4E5E2", gridwidth=1,
                    zeroline=False, tickfont=dict(color="#4A4B47")),
     )
-    st.plotly_chart(fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}")
+    fig1_event = st.plotly_chart(
+        fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}",
+        on_select="rerun", selection_mode=["points"],
+    )
+
+    # A click toggles: clicking the same day's dot again closes the detail
+    # panel, clicking a different day's dot switches straight to it. Only
+    # points carrying customdata (the marker trace) count -- the mean line
+    # is hoverinfo="skip"/unselectable but this guards it either way.
+    clicked_day = None
+    for pt in fig1_event.selection.points:
+        cd = pt.get("customdata")
+        if cd:
+            clicked_day = cd[0]
+            break
+    if clicked_day is not None:
+        st.session_state["_tl_selected_day"] = (
+            None if st.session_state.get("_tl_selected_day") == clicked_day else clicked_day
+        )
+
+    selected_day_str = st.session_state.get("_tl_selected_day")
+    if selected_day_str:
+        selected_day = dt.date.fromisoformat(selected_day_str)
+        day_rows = [r for r in dated_rows if r["date"] == selected_day]
+        with st.container(border=True):
+            dc1, dc2 = st.columns([6, 1])
+            with dc1:
+                st.markdown(
+                    f'<div class="hv-h1" style="font-size:16px">{selected_day.isoformat()} '
+                    f'<span class="hv-mono" style="font-size:12px;color:#71736D;font-weight:400">'
+                    f'{len(day_rows)} photo{"s" if len(day_rows) != 1 else ""}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            with dc2:
+                if st.button("✕ Close", key="tl_close_day_detail", width="stretch"):
+                    st.session_state["_tl_selected_day"] = None
+                    st.rerun()
+
+            # compliance analysis for the day: overall rate + missing-by-type,
+            # same slot vocabulary/order as the VIOLATIONS BY TYPE chart below.
+            day_persons = sum(r["n_persons"] for r in day_rows)
+            day_compliant = sum(round(r["compliance_pct"] / 100 * r["n_persons"])
+                                 for r in day_rows if r["compliance_pct"] is not None)
+            day_pct = round(day_compliant / day_persons * 100, 1) if day_persons else None
+            ac1, ac2 = st.columns([1, 2])
+            with ac1:
+                st.markdown(f"""
+                <div style="background:#141414;color:#FFFFFF;padding:14px 18px;height:100%">
+                  <div class="hv-mono" style="font-size:10px;letter-spacing:1.5px;color:#9B9D97">DAY COMPLIANCE</div>
+                  <div class="hv-h1" style="font-size:32px;line-height:1;color:#FFFFFF">{day_pct if day_pct is not None else '—'}{'%' if day_pct is not None else ''}</div>
+                  <div style="font-size:11.5px;color:#9B9D97">{day_compliant}/{day_persons} persons compliant</div>
+                </div>""", unsafe_allow_html=True)
+            with ac2:
+                missing_rows_html = ""
+                for slot in _ALL_SLOTS:
+                    count = sum(r["missing_counts"][slot] for r in day_rows)
+                    if count == 0:
+                        continue
+                    neg_key = detector.SLOT_ITEMS[slot][1]
+                    color = detector.CLASS_META[neg_key]["color"]
+                    missing_rows_html += (
+                        f"<div style='display:flex;justify-content:space-between;padding:5px 12px;"
+                        f"border-bottom:1px solid #F0F1EC;font-size:12.5px'>"
+                        f"<span><span style='display:inline-block;width:9px;height:9px;background:{color};"
+                        f"margin-right:8px;border-radius:1px'></span>{_VIOLATION_LABELS[slot]}</span>"
+                        f"<span class='hv-mono' style='font-weight:600'>{count}</span></div>"
+                    )
+                st.markdown(f"""
+                <div style="background:#FFFFFF;border:1px solid #C4C6C0;height:100%">
+                  <div class="hv-mono" style="font-size:10px;letter-spacing:1.5px;color:#71736D;padding:8px 12px 0">
+                    MISSING PPE THIS DAY</div>
+                  {missing_rows_html or "<div style='padding:8px 12px;font-size:12.5px;color:#71736D'>Nothing missing -- fully compliant.</div>"}
+                </div>""", unsafe_allow_html=True)
+
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+            # images with labels (detail=True -- same treatment as the Demo
+            # page's single-photo detail view: thicker outlines, class name
+            # + confidence baked onto each box), not the unlabeled thumbnail
+            # style the filmstrip below uses.
+            day_cols = st.columns(min(len(day_rows), 3) or 1)
+            for i, r in enumerate(day_rows):
+                img = th.load_image(r["key"])
+                if img is None:
+                    continue
+                labeled = vh.draw_overlay(img, r["assessment"]["persons"], show_boxes=True,
+                                           show_labels=True, detail=True)
+                with day_cols[i % len(day_cols)]:
+                    st.image(labeled, width="stretch")
+                    st.markdown(
+                        f'<div class="hv-mono" style="font-size:10.5px;color:#4A4B47">{_fmt_dt(r["dt"])}</div>'
+                        f'{vh.verdict_badge(r["assessment"]["verdict"])}'
+                        + (f'<div style="font-size:11px;color:#71736D">{r["caption"]}</div>' if r["caption"] else ""),
+                        unsafe_allow_html=True,
+                    )
 
     # ---------------------------------------------------------------------------
     # chart 2 -- violation-type breakdown (its own separate chart/axis -- counts,
@@ -341,7 +428,7 @@ else:
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-with st.expander("📁 MANAGE PHOTOS — upload, correct labels, edit dates", expanded=not manifest):
+with st.expander("Admin", expanded=not manifest):
     # ---------------------------------------------------------------------------
     # 2. upload + label new photos (not yet part of the saved timeline)
     # ---------------------------------------------------------------------------
