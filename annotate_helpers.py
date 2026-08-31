@@ -142,9 +142,25 @@ def boxes_to_fabric(boxes, canvas_w, canvas_h, background_image=None):
         objects.append(obj)
     drawing = {"version": "4.4.0", "objects": objects}
     if background_image is not None:
+        # Fabric.js's Image object treats a declared width/height as a
+        # crop window into the SOURCE image's natural resolution, not as
+        # a target size to scale the whole image into (confirmed by
+        # reading fabric's own source: _renderFill draws
+        # drawImage(el, sX, sY, sW, sH, ...) where sW/sH are capped by
+        # el's natural width/height, using this.width/this.height only to
+        # size that window). _canvas_size() caps the display width at
+        # 900px, so any wider photo (our CCTV stills are 1254x1254) would
+        # get embedded at full natural resolution while this dict
+        # declares the smaller canvas_w/canvas_h -- Fabric then rendered
+        # only the top-left canvas_w x canvas_h crop of the real photo at
+        # 1:1 scale, while the boxes above are correctly positioned for
+        # the whole photo scaled down to canvas_w x canvas_h. Resizing
+        # here so the embedded image's natural size already equals the
+        # declared width/height makes that crop window a no-op.
+        bg = background_image.convert("RGB").resize((int(canvas_w), int(canvas_h)))
         drawing["backgroundImage"] = {
             "type": "image",
-            "src": _image_to_data_uri(background_image),
+            "src": _image_to_data_uri(bg),
             "left": 0, "top": 0, "originX": "left", "originY": "top",
             "width": canvas_w, "height": canvas_h, "scaleX": 1, "scaleY": 1,
         }
