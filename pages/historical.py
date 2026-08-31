@@ -234,55 +234,55 @@ else:
     # chart 1 -- compliance % trend (its own axis: 0-100%, nothing else sharing it)
     # ---------------------------------------------------------------------------
 
-    with st.container(border=True):
-        st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
-        st.caption("Day's mean compliance. Click the marker to review photos.")
+    st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
+    st.caption("Day's mean compliance. Click the marker to review photos.")
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-        day_photo_count = {d: len(mean_by_date[d]) for d in dates_sorted}
-        day_text = [
-            f"{d.isoformat()}<br>{mean_y[i]}% compliant (mean of {day_photo_count[d]} photo"
-            + ("s" if day_photo_count[d] != 1 else "") + ")"
-            for i, d in enumerate(dates_sorted)
-        ]
+    day_photo_count = {d: len(mean_by_date[d]) for d in dates_sorted}
+    day_text = [
+        f"{d.isoformat()}<br>{mean_y[i]}% compliant (mean of {day_photo_count[d]} photo"
+        + ("s" if day_photo_count[d] != 1 else "") + ")"
+        for i, d in enumerate(dates_sorted)
+    ]
 
-        # The open day's marker gets the app's primary yellow and a bigger radius --
-        # same "this one is active" treatment used elsewhere (e.g. the primary
-        # photo highlight), so it's obvious at a glance which day the panel below
-        # belongs to, on top of the click-to-open affordance itself.
-        _selected_day_str = st.session_state.get("_tl_selected_day")
-        marker_colors = ["#EFE600" if d.isoformat() == _selected_day_str else "#14213D" for d in dates_sorted]
-        marker_sizes = [18 if d.isoformat() == _selected_day_str else 10 for d in dates_sorted]
-        marker_line_colors = ["#141414" if d.isoformat() == _selected_day_str else "#FFFFFF" for d in dates_sorted]
+    # The open day's marker gets the app's primary yellow and a bigger radius --
+    # same "this one is active" treatment used elsewhere (e.g. the primary
+    # photo highlight), so it's obvious at a glance which day the panel below
+    # belongs to, on top of the click-to-open affordance itself.
+    _selected_day_str = st.session_state.get("_tl_selected_day")
+    marker_colors = ["#EFE600" if d.isoformat() == _selected_day_str else "#14213D" for d in dates_sorted]
+    marker_sizes = [18 if d.isoformat() == _selected_day_str else 10 for d in dates_sorted]
+    marker_line_colors = ["#141414" if d.isoformat() == _selected_day_str else "#FFFFFF" for d in dates_sorted]
 
-        fig1 = go.Figure()
-        fig1.add_trace(go.Scatter(
-            x=mean_x, y=mean_y, mode="lines+markers",
-            line=dict(color="#14213D", width=2),
-            marker=dict(size=marker_sizes, color=marker_colors, line=dict(color=marker_line_colors, width=2)),
-            text=day_text, hovertemplate="%{text}<extra></extra>", showlegend=False,
-            # One point per day, so a click's customdata is that day's isoformat --
-            # read back below to know which day's detail panel to open.
-            customdata=[[d.isoformat()] for d in dates_sorted],
-        ))
-        fig1.update_layout(
-            height=340, margin=dict(l=10, r=10, t=10, b=10),
-            plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
-            # One tick per day, dated (not timed), placed exactly at each
-            # day's marker -- a plain dtick="D1" instead anchors ticks to
-            # midnight, which falls *outside* the plotted range (mean_x
-            # sits at noon) and silently drops the first day's label off
-            # the left edge.
-            xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47"),
-                       tickmode="array", tickvals=mean_x,
-                       ticktext=[d.strftime("%b %-d") for d in dates_sorted]),
-            yaxis=dict(range=[0, 100], ticksuffix="%", gridcolor="#E4E5E2", gridwidth=1,
-                       zeroline=False, tickfont=dict(color="#4A4B47")),
-        )
-        fig1_event = st.plotly_chart(
-            fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}",
-            on_select="rerun", selection_mode=["points"],
-        )
+    fig1 = go.Figure()
+    fig1.add_trace(go.Scatter(
+        x=mean_x, y=mean_y, mode="lines+markers",
+        line=dict(color="#14213D", width=2),
+        marker=dict(size=marker_sizes, color=marker_colors, line=dict(color=marker_line_colors, width=2)),
+        text=day_text, hovertemplate="%{text}<extra></extra>", showlegend=False,
+        # One point per day, so a click's customdata is that day's isoformat --
+        # read back below to know which day's detail panel to open.
+        customdata=[[d.isoformat()] for d in dates_sorted],
+    ))
+    fig1.update_layout(
+        height=340, margin=dict(l=10, r=10, t=10, b=10),
+        plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
+        # One tick per day, dated (not timed), placed exactly at each
+        # day's marker -- a plain dtick="D1" instead anchors ticks to
+        # midnight, which falls *outside* the plotted range (mean_x
+        # sits at noon) and silently drops the first day's label off
+        # the left edge.
+        xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47"),
+                   tickmode="array", tickvals=mean_x,
+                   ticktext=[d.strftime("%b %-d") for d in dates_sorted]),
+        yaxis=dict(range=[0, 100], ticksuffix="%", gridcolor="#E4E5E2", gridwidth=1,
+                   zeroline=False, tickfont=dict(color="#4A4B47")),
+    )
+    fig1_event = st.plotly_chart(
+        fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}",
+        on_select="rerun", selection_mode=["points"],
+    )
 
     # A click toggles: clicking the same day's dot again closes the detail
     # panel, clicking a different day's dot switches straight to it. Only
@@ -323,7 +323,7 @@ else:
                     unsafe_allow_html=True,
                 )
             with dc2:
-                if st.button("✕ Close", key="tl_close_day_detail", width="stretch"):
+                if st.button("Close", icon=":material/close:", key="tl_close_day_detail", width="stretch"):
                     st.session_state["_tl_selected_day"] = None
                     st.rerun()
 
@@ -400,42 +400,42 @@ else:
     )]
 
     if tracked_slots:
-        with st.container(border=True):
-            st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">VIOLATIONS BY TYPE</div>', unsafe_allow_html=True)
-            st.caption("Count of missing-PPE findings per date, by item type.")
+        st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">VIOLATIONS BY TYPE</div>', unsafe_allow_html=True)
+        st.caption("Count of missing-PPE findings per date, by item type.")
+        st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-            by_date_slot = {}
-            for r in dated_rows:
-                acc = by_date_slot.setdefault(r["date"], {s: 0 for s in tracked_slots})
-                for s in tracked_slots:
-                    acc[s] += r["missing_counts"][s]
+        by_date_slot = {}
+        for r in dated_rows:
+            acc = by_date_slot.setdefault(r["date"], {s: 0 for s in tracked_slots})
+            for s in tracked_slots:
+                acc[s] += r["missing_counts"][s]
 
-            max_count = max((by_date_slot[d][s] for d in dates_sorted for s in tracked_slots), default=0)
-            # Clean integer ticks for a small-count series (0,1,2,...) rather than
-            # Plotly's own auto-picked fractional ticks (0.2/0.4/...) for a max of 1.
-            dtick = 1 if max_count <= 12 else max(1, round(max_count / 8))
+        max_count = max((by_date_slot[d][s] for d in dates_sorted for s in tracked_slots), default=0)
+        # Clean integer ticks for a small-count series (0,1,2,...) rather than
+        # Plotly's own auto-picked fractional ticks (0.2/0.4/...) for a max of 1.
+        dtick = 1 if max_count <= 12 else max(1, round(max_count / 8))
 
-            fig2 = go.Figure()
-            for slot in tracked_slots:  # fixed order (matches _ALL_SLOTS) -- never cycled/reordered
-                neg_key = detector.SLOT_ITEMS[slot][1]
-                color = detector.CLASS_META[neg_key]["color"]
-                label = _VIOLATION_LABELS[slot]
-                y = [by_date_slot[d][slot] for d in dates_sorted]
-                fig2.add_trace(go.Bar(
-                    x=dates_sorted, y=y, name=label, marker=dict(color=color),
-                    hovertemplate=f"{label}: " + "%{y}<extra></extra>",
-                ))
-            fig2.update_layout(
-                height=320, margin=dict(l=10, r=10, t=10, b=10),
-                barmode="group", bargap=0.25, bargroupgap=0.06,
-                plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-                xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
-                yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
-                           rangemode="tozero", dtick=dtick, tick0=0),
-            )
-            st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig2_{_rows_sig}")
+        fig2 = go.Figure()
+        for slot in tracked_slots:  # fixed order (matches _ALL_SLOTS) -- never cycled/reordered
+            neg_key = detector.SLOT_ITEMS[slot][1]
+            color = detector.CLASS_META[neg_key]["color"]
+            label = _VIOLATION_LABELS[slot]
+            y = [by_date_slot[d][slot] for d in dates_sorted]
+            fig2.add_trace(go.Bar(
+                x=dates_sorted, y=y, name=label, marker=dict(color=color),
+                hovertemplate=f"{label}: " + "%{y}<extra></extra>",
+            ))
+        fig2.update_layout(
+            height=320, margin=dict(l=10, r=10, t=10, b=10),
+            barmode="group", bargap=0.25, bargroupgap=0.06,
+            plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
+            yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
+                       rangemode="tozero", dtick=dtick, tick0=0),
+        )
+        st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig2_{_rows_sig}")
     else:
         st.caption("The loaded model hasn't detected any tracked PPE item across these photos yet -- "
                    "nothing to break down by type.")
@@ -509,7 +509,7 @@ with st.expander("", icon=":material/settings:", expanded=not manifest):
                 caption_val = st.text_input("Caption (optional)", value=p.get("existing_caption", ""), key=f"tl_caption_{key}",
                                              placeholder="e.g. Week 1, morning shift")
             with c5:
-                if st.button("✕ Discard", key=f"tl_discard_{key}"):
+                if st.button("Discard", icon=":material/close:", key=f"tl_discard_{key}"):
                     pending.pop(key, None)
                     st.rerun()
             to_save.append((key, dt.datetime.combine(date_val, time_val), caption_val))
@@ -558,14 +558,14 @@ with st.expander("", icon=":material/settings:", expanded=not manifest):
             """, unsafe_allow_html=True)
             bc1, bc2 = st.columns(2)
             with bc1:
-                if st.button("✎ Correct", key=f"tl_correct_{r['key']}", width="stretch"):
+                if st.button("Correct", icon=":material/edit:", key=f"tl_correct_{r['key']}", width="stretch"):
                     st.session_state["_tl_editing_key"] = r["key"]
                     st.rerun()
             with bc2:
-                if st.button("✕ Remove", key=f"tl_remove_{r['key']}", width="stretch"):
+                if st.button("Remove", icon=":material/close:", key=f"tl_remove_{r['key']}", width="stretch"):
                     th.delete_entry(r["key"])
                     st.rerun()
-            if st.button("🗓 Edit date & time", key=f"tl_editmeta_btn_{r['key']}", width="stretch"):
+            if st.button("Edit date & time", icon=":material/edit_calendar:", key=f"tl_editmeta_btn_{r['key']}", width="stretch"):
                 st.session_state["_tl_editing_meta_key"] = (
                     None if st.session_state.get("_tl_editing_meta_key") == r["key"] else r["key"]
                 )

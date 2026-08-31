@@ -266,8 +266,22 @@ html, body, [class*="css"] { font-family:'IBM Plex Sans',sans-serif; }
 [data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
     display:none !important;
 }
+/* Streamlit paints its own full-row hover background on the summary bar --
+   suppress that and instead give just the icon glyph a small, icon-sized
+   hover target (like a real icon button), not the whole card width. */
+[data-testid="stExpander"] summary:hover {
+    background:transparent !important;
+}
+[data-testid="stExpander"] summary > span > span:first-child {
+    display:inline-flex !important; align-items:center !important; justify-content:center !important;
+    width:34px !important; height:34px !important; border-radius:6px !important;
+    transition:background-color 120ms ease !important;
+}
+[data-testid="stExpander"] summary > span > span:first-child:hover {
+    background:#C4C6C0 !important;
+}
 [data-testid="stExpander"] summary > span > span:first-child::before {
-    content:"⚙" !important; font-family:initial !important; font-size:16px !important;
+    content:"⚙" !important; font-family:initial !important; font-size:20px !important;
     color:#141414 !important; line-height:1 !important; display:inline-block !important;
 }
 [data-testid="stAlert"] { background:#FFFFFF !important; border:1px solid #C4C6C0 !important; border-radius:0 !important; }
