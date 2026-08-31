@@ -212,7 +212,6 @@ else:
         <div style="background:#141414;color:#FFFFFF;padding:16px 20px 14px;min-height:{_TILE_MIN_HEIGHT}">
           <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#9B9D97">PHOTOS IN TIMELINE</div>
           <div class="hv-h1" style="font-size:40px;line-height:1;color:#FFFFFF">{len(manifest)}</div>
-          <div style="font-size:12px;color:#9B9D97;margin-top:10px">{len(rows)} dated · {len(invalid)} unreadable date</div>
         </div>""", unsafe_allow_html=True)
     with t2:
         st.markdown(f"""
@@ -321,8 +320,7 @@ else:
             dc1, dc2 = st.columns([6, 1])
             with dc1:
                 st.markdown(
-                    f'<div class="hv-h1" style="font-size:16px">{selected_day.isoformat()} '
-                    f'<span class="hv-mono" style="font-size:12px;color:#71736D;font-weight:400">',
+                    f'<div class="hv-h1" style="font-size:16px">{selected_day.isoformat()}</div>',
                     unsafe_allow_html=True,
                 )
             with dc2:
@@ -342,7 +340,6 @@ else:
                 <div style="background:#141414;color:#FFFFFF;padding:14px 18px;height:100%">
                   <div class="hv-mono" style="font-size:10px;letter-spacing:1.5px;color:#9B9D97">DAY COMPLIANCE</div>
                   <div class="hv-h1" style="font-size:32px;line-height:1;color:#FFFFFF">{day_pct if day_pct is not None else '—'}{'%' if day_pct is not None else ''}</div>
-                  <div style="font-size:11.5px;color:#9B9D97">{day_compliant}/{day_persons} persons compliant</div>
                 </div>""", unsafe_allow_html=True)
             with ac2:
                 missing_rows_html = ""
