@@ -62,9 +62,16 @@ def _write_manifest(entries):
 def save_entry(key, image, raw_boxes, name, date_str, caption):
     """Persist one CCTV photo into the timeline: the image itself, its raw
     (not-yet-threshold-filtered) detections, and a manifest row carrying
-    the date/caption assigned to it. `key` is the same content-hash key
-    the caller already computed for its own upload-dedup step (see
-    pages/historical.py) -- passed in rather than recomputed here."""
+    the date/time (and caption) assigned to it. `date_str` is a full ISO
+    date+time string (e.g. "2026-08-31T14:30:00") -- callers combine a
+    date_input + time_input and call .isoformat() on the result, since a
+    day's batch is usually several photos and time is what keeps them
+    ordered correctly within their day; a bare ISO date also still parses
+    fine on the way back out (datetime.fromisoformat treats it as
+    midnight), so nothing saved before per-photo times existed breaks.
+    `key` is the same content-hash key the caller already computed for its
+    own upload-dedup step (see pages/historical.py) -- passed in rather
+    than recomputed here."""
     TIMELINE_IMAGES.mkdir(parents=True, exist_ok=True)
     TIMELINE_RAW.mkdir(parents=True, exist_ok=True)
 

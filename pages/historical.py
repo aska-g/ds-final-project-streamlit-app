@@ -6,13 +6,17 @@ once (site inspection photos, a week of CCTV grabs) and track how
 compliance moved across it" -- a different question, a different persisted
 dataset (data/timeline/, via timeline_helpers.py), its own upload box.
 
-Each photo gets a manually-assigned date (see the brainstorm behind this:
-CCTV exports don't reliably keep EXIF, and for a curated demo narrative you
-want to control which photo represents which point anyway, not depend on
-metadata). What's persisted is the raw detections, not a baked verdict --
-so the trend below always reflects whatever threshold / WHAT COUNTS AS
-COMPLIANT rule is currently set on the Demo page, exactly like the Model
-Comparison page already does for its own live batch.
+Each photo gets a manually-assigned date AND time (see the brainstorm
+behind this: CCTV exports don't reliably keep EXIF, and for a curated demo
+narrative you want to control which photo represents which point anyway,
+not depend on metadata) -- the time matters because a day's batch is
+usually several photos, not one, so it's what keeps them ordered correctly
+within their day. The two trend charts below still bucket by day (that's
+the granularity the story is told at); time mainly drives sort order and
+the filmstrip/hover detail. What's persisted is the raw detections, not a
+baked verdict -- so the trend always reflects whatever threshold / WHAT
+COUNTS AS COMPLIANT rule is currently set on the Demo page, exactly like
+the Model Comparison page already does for its own live batch.
 """
 
 import datetime as dt
@@ -43,6 +47,13 @@ st.markdown(
 
 _ALL_SLOTS = ("hardhat", "vest", "mask", "gloves", "boots")  # fixed order, matches pages/demo.py
 
+
+def _fmt_dt(d):
+    """Full ISO datetime -> "2026-08-31 14:30" for hover text and the
+    filmstrip -- readable regardless of whether a time was actually set
+    (midnight for anything saved before per-photo times existed)."""
+    return d.strftime("%Y-%m-%d %H:%M") if d is not None else None
+
 # ---------------------------------------------------------------------------
 # 1. upload + label new photos (not yet part of the saved timeline)
 # ---------------------------------------------------------------------------
@@ -66,28 +77,33 @@ for f in uploaded_files or []:
     pending[key] = {"image": img, "raw": raw, "name": f.name}
 
 if pending:
-    st.caption(f"{len(pending)} photo{'s' if len(pending) != 1 else ''} awaiting a date before they're added to the timeline:")
-    to_save = []  # (key, date_value, caption_value) captured this run, used if the button below is clicked
+    st.caption(f"{len(pending)} photo{'s' if len(pending) != 1 else ''} awaiting a date and time before "
+               f"they're added to the timeline -- set both per photo so a whole day's batch (several "
+               f"photos, different times) orders and reads correctly:")
+    to_save = []  # (key, datetime_value, caption_value) captured this run, used if the button below is clicked
     for key, p in list(pending.items()):
-        c1, c2, c3, c4 = st.columns([1, 2, 3, 1])
+        c1, c2, c3, c4, c5 = st.columns([1, 1.4, 1.2, 2.4, 1])
         with c1:
             st.image(p["image"], width="stretch")
         with c2:
             date_val = st.date_input("Date taken", value=dt.date.today(), key=f"tl_date_{key}")
         with c3:
-            caption_val = st.text_input("Caption (optional)", value="", key=f"tl_caption_{key}",
-                                         placeholder="e.g. Week 1 walkthrough")
+            time_val = st.time_input("Time taken", value=dt.datetime.now().time().replace(second=0, microsecond=0),
+                                      step=300, key=f"tl_time_{key}")
         with c4:
+            caption_val = st.text_input("Caption (optional)", value="", key=f"tl_caption_{key}",
+                                         placeholder="e.g. Week 1, morning shift")
+        with c5:
             if st.button("✕ Discard", key=f"tl_discard_{key}"):
                 pending.pop(key, None)
                 st.rerun()
-        to_save.append((key, date_val, caption_val))
+        to_save.append((key, dt.datetime.combine(date_val, time_val), caption_val))
 
     if st.button(f"Add {len(pending)} photo{'s' if len(pending) != 1 else ''} to timeline",
                  key="tl_add_all", type="primary"):
-        for key, date_val, caption_val in to_save:
+        for key, dt_val, caption_val in to_save:
             p = pending[key]
-            th.save_entry(key, p["image"], p["raw"], p["name"], date_val.isoformat(), caption_val)
+            th.save_entry(key, p["image"], p["raw"], p["name"], dt_val.isoformat(), caption_val)
         st.session_state._timeline_pending = {}
         st.toast(f"Added {len(to_save)} photo{'s' if len(to_save) != 1 else ''} to the timeline.")
         st.rerun()
@@ -126,12 +142,17 @@ for key, meta in manifest.items():
         "verdict": assessment["verdict"],
     }
     try:
-        row["date"] = dt.date.fromisoformat(row["date_str"])
+        # stored as a full ISO date+time now ("2026-08-31T14:30:00"), but
+        # datetime.fromisoformat also happily parses a bare date ("2026-08-31",
+        # midnight) -- keeps this reading any entry saved before per-photo
+        # times existed, no migration needed.
+        row["dt"] = dt.datetime.fromisoformat(row["date_str"])
     except ValueError:
-        row["date"] = None
-    (rows if row["date"] is not None else invalid).append(row)
+        row["dt"] = None
+    row["date"] = row["dt"].date() if row["dt"] is not None else None  # day-bucket, used by both charts below
+    (rows if row["dt"] is not None else invalid).append(row)
 
-rows.sort(key=lambda r: r["date"])
+rows.sort(key=lambda r: r["dt"])  # exact time, so same-day batches order correctly within their day
 
 if invalid:
     st.warning(f"{len(invalid)} timeline entr{'y has' if len(invalid) == 1 else 'ies have'} an unreadable date "
@@ -202,7 +223,7 @@ st.caption("Line = mean compliance per date. Dots = individual photos (hover for
 point_x = [r["date"] for r in dated_rows]
 point_y = [r["compliance_pct"] for r in dated_rows]
 point_text = [
-    f"{r['name']}<br>{r['date_str']}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
+    f"{r['name']}<br>{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
     + (f"<br>{r['caption']}" if r["caption"] else "")
     for r in dated_rows
 ]
@@ -291,7 +312,7 @@ for i, r in enumerate(rows + invalid):
           <img src="data:image/jpeg;base64,{vh.b64_image(thumb, max_dim=320)}"
                style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"/>
           <div style="padding:6px 8px;display:flex;flex-direction:column;gap:4px">
-            <span class="hv-mono" style="font-size:10.5px;color:#4A4B47">{r['date_str'] or 'no date'}</span>
+            <span class="hv-mono" style="font-size:10.5px;color:#4A4B47">{_fmt_dt(r['dt']) or r['date_str'] or 'no date'}</span>
             {vh.verdict_badge(assessment["verdict"])}
             {f'<span style="font-size:11px;color:#71736D">{r["caption"]}</span>' if r["caption"] else ""}
           </div>
