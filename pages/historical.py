@@ -6,6 +6,14 @@ once (site inspection photos, a week of CCTV grabs) and track how
 compliance moved across it" -- a different question, a different persisted
 dataset (data/timeline/, via timeline_helpers.py), its own upload box.
 
+The trend is the point of this page, so it's what's on screen first --
+uploading photos, correcting labels, and retagging dates all live inside
+the "MANAGE PHOTOS" toggle at the bottom instead of at the top, so they
+don't compete with the charts for space. It's collapsed by default once
+there's a timeline to show, and auto-expands when there isn't (nothing
+saved yet), so a first-time user still lands on the upload form rather
+than an empty page.
+
 Each photo gets a manually-assigned date AND time (see the brainstorm
 behind this: CCTV exports don't reliably keep EXIF, and for a curated demo
 narrative you want to control which photo represents which point anyway,
@@ -91,97 +99,15 @@ def _fmt_dt(d):
     (midnight for anything saved before per-photo times existed)."""
     return d.strftime("%Y-%m-%d %H:%M") if d is not None else None
 
-# ---------------------------------------------------------------------------
-# 1. upload + label new photos (not yet part of the saved timeline)
-# ---------------------------------------------------------------------------
-
-st.session_state.setdefault("_timeline_pending", {})
-pending = st.session_state._timeline_pending
-manifest_now = th.load_manifest()
-saved_keys = set(manifest_now.keys())
-
-st.markdown('<div class="hv-h1" style="font-size:18px;margin-bottom:6px">ADD PHOTOS</div>', unsafe_allow_html=True)
-st.caption("Re-uploading a photo that's already in the timeline lets you retag its date, time, or "
-           "caption -- same content-hash key (see timeline_helpers.save_entry), so it updates that "
-           "entry in place rather than duplicating it.")
-uploaded_files = st.file_uploader(
-    "Select CCTV / site photos", type=["jpg", "jpeg", "png"], accept_multiple_files=True,
-    label_visibility="collapsed", key="historical_uploader",
-)
-for f in uploaded_files or []:
-    raw_bytes = f.getvalue()
-    key = hashlib.md5(raw_bytes).hexdigest()
-    if key in pending:
-        continue  # already waiting to be (re-)labeled below
-    is_reupload = key in saved_keys
-    img = vh.load_image(raw_bytes)
-    # Already-saved photo: reuse its stored raw detections rather than
-    # rerunning the model (retagging is about the date/caption, not the
-    # detections) and pre-fill the form below with its current values.
-    raw = th.load_raw(key) if is_reupload else detector.detect_raw(model, img)
-    existing = manifest_now.get(key, {})
-    pending[key] = {"image": img, "raw": raw, "name": f.name, "is_reupload": is_reupload,
-                     "existing_date": existing.get("date", ""), "existing_caption": existing.get("caption", "")}
-
-if pending:
-    st.caption(f"{len(pending)} photo{'s' if len(pending) != 1 else ''} awaiting a date and time before "
-               f"they're added to the timeline -- set both per photo so a whole day's batch (several "
-               f"photos, different times) orders and reads correctly:")
-    to_save = []  # (key, datetime_value, caption_value) captured this run, used if the button below is clicked
-    for key, p in list(pending.items()):
-        try:
-            existing_dt = dt.datetime.fromisoformat(p["existing_date"]) if p.get("existing_date") else None
-        except ValueError:
-            existing_dt = None
-        default_date = existing_dt.date() if existing_dt else dt.date.today()
-        default_time = (existing_dt.time().replace(second=0, microsecond=0) if existing_dt
-                         else dt.datetime.now().time().replace(second=0, microsecond=0))
-
-        c1, c2, c3, c4, c5 = st.columns([1, 1.4, 1.2, 2.4, 1])
-        with c1:
-            st.image(p["image"], width="stretch")
-            if p.get("is_reupload"):
-                st.caption("Already in timeline -- retagging")
-        with c2:
-            # min/max deliberately wide open (not just Streamlit's default
-            # ~10-year window either side of value) -- this page is also used
-            # to pre-stage demo photos with a future date before the real day
-            # arrives, so a future date is a legitimate, intentional input here,
-            # never something to validate against.
-            date_val = st.date_input("Date taken", value=default_date,
-                                      min_value=dt.date(2000, 1, 1), max_value=dt.date(2100, 1, 1),
-                                      key=f"tl_date_{key}")
-        with c3:
-            time_val = st.time_input("Time taken", value=default_time,
-                                      step=300, key=f"tl_time_{key}")
-        with c4:
-            caption_val = st.text_input("Caption (optional)", value=p.get("existing_caption", ""), key=f"tl_caption_{key}",
-                                         placeholder="e.g. Week 1, morning shift")
-        with c5:
-            if st.button("✕ Discard", key=f"tl_discard_{key}"):
-                pending.pop(key, None)
-                st.rerun()
-        to_save.append((key, dt.datetime.combine(date_val, time_val), caption_val))
-
-    if st.button(f"Save {len(pending)} photo{'s' if len(pending) != 1 else ''} to timeline",
-                 key="tl_add_all", type="primary"):
-        for key, dt_val, caption_val in to_save:
-            p = pending[key]
-            th.save_entry(key, p["image"], p["raw"], p["name"], dt_val.isoformat(), caption_val)
-        st.session_state._timeline_pending = {}
-        st.toast(f"Saved {len(to_save)} photo{'s' if len(to_save) != 1 else ''} to the timeline.")
-        st.rerun()
-
-st.markdown("<hr>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# 2. the saved timeline itself
+# 1. the saved timeline itself -- charts up front, so the trend is what's
+# on screen when this page loads. Uploading, correcting, and retagging
+# photos moved into the "MANAGE PHOTOS" toggle at the bottom (see below)
+# instead of competing with the charts for the top of the page.
 # ---------------------------------------------------------------------------
 
 manifest = th.load_manifest()
-if not manifest:
-    st.info("No timeline entries yet. Upload photos above and give each a date to get started.")
-    st.stop()
 
 threshold = st.session_state.get("threshold", 0.35)
 required = tuple(
@@ -241,279 +167,366 @@ _rows_sig = hashlib.md5(
     "|".join(f"{r['key']}:{r['date_str']}:{r['caption']}" for r in rows + invalid).encode()
 ).hexdigest()[:12]
 
-if invalid:
-    st.warning(f"{len(invalid)} timeline entr{'y has' if len(invalid) == 1 else 'ies have'} an unreadable date "
-               f"and are excluded from the chart below (still shown in the filmstrip).")
-
-st.markdown(
-    f'<div style="font-size:12.5px;color:#4A4B47;margin-bottom:14px">Recomputed at threshold '
-    f'<b>{threshold:.2f}</b> using the same WHAT COUNTS AS COMPLIANT rule set as the Demo page. '
-    f'Change either there to see this update here.</div>',
-    unsafe_allow_html=True,
-)
-
-# per-date mean compliance -- the line; individual photos -- the dots.
-# Two different questions ("what's the trend" vs "what's this one photo"),
-# never forced onto the same number.
-mean_by_date = {}
-for r in rows:
-    if r["compliance_pct"] is not None:
-        mean_by_date.setdefault(r["date"], []).append(r["compliance_pct"])
-dates_sorted = sorted(mean_by_date)
-# Anchored at midday, not midnight -- dots below are positioned at each
-# photo's actual tagged time (see point_x), so the line needs to sit
-# roughly centered among a day's dots instead of to their left at 00:00,
-# which used to make the trend line look disconnected from what the axis's
-# own hour ticks show.
-mean_x = [dt.datetime.combine(d, dt.time(12, 0)) for d in dates_sorted]
-mean_y = [round(sum(mean_by_date[d]) / len(mean_by_date[d]), 1) for d in dates_sorted]
-
-# ---------------------------------------------------------------------------
-# hero stat tiles
-# ---------------------------------------------------------------------------
-
-dated_rows = [r for r in rows if r["compliance_pct"] is not None]
-date_range_txt = f"{rows[0]['date'].isoformat()} → {rows[-1]['date'].isoformat()}" if rows else "—"
-delta_txt, delta_sub = "—", "not enough dated photos yet"
-if len(dates_sorted) >= 2:
-    delta = mean_y[-1] - mean_y[0]
-    sign = "+" if delta >= 0 else ""
-    delta_txt = f"{sign}{delta:.0f} pts"
-    delta_sub = f"{mean_y[0]:.0f}% on {dates_sorted[0].isoformat()} → {mean_y[-1]:.0f}% on {dates_sorted[-1].isoformat()}"
-
-t1, t2, t3 = st.columns(3)
-with t1:
-    st.markdown(f"""
-    <div style="background:#141414;color:#FFFFFF;padding:16px 20px 14px;height:100%">
-      <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#9B9D97">PHOTOS IN TIMELINE</div>
-      <div class="hv-h1" style="font-size:40px;line-height:1;color:#FFFFFF">{len(manifest)}</div>
-      <div style="font-size:12px;color:#9B9D97">{len(rows)} dated · {len(invalid)} unreadable date</div>
-    </div>""", unsafe_allow_html=True)
-with t2:
-    st.markdown(f"""
-    <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;height:100%">
-      <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">DATE RANGE</div>
-      <div class="hv-h1" style="font-size:22px;line-height:1.3;margin-top:6px">{date_range_txt}</div>
-    </div>""", unsafe_allow_html=True)
-with t3:
-    st.markdown(f"""
-    <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;height:100%">
-      <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">COMPLIANCE CHANGE</div>
-      <div class="hv-h1" style="font-size:40px;line-height:1">{delta_txt}</div>
-      <div style="font-size:12px;color:#71736D">{delta_sub}</div>
-    </div>""", unsafe_allow_html=True)
-
-st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-
-# ---------------------------------------------------------------------------
-# chart 1 -- compliance % trend (its own axis: 0-100%, nothing else sharing it)
-# ---------------------------------------------------------------------------
-
-st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
-st.caption("Line = mean compliance per date. Dots = individual photos, evenly spread across "
-           "each day in tagged order (hover for detail).")
-
-# Evenly spread across the day (assumes ~3 photos/day, but works for any
-# per-day count) rather than plotted at each photo's literal tagged time --
-# real capture times tend to cluster in a working-hours window (e.g.
-# 09:00/12:00/15:00), which left a big empty gap overnight between days and
-# a cramped one within. dated_rows is already in chronological order (see
-# rows.sort by full dt above), so a running per-day index is enough to slot
-# each day's photos into equal-width positions across that day, in the same
-# order their tagged times put them in.
-_day_counts, _day_seen = {}, {}
-for r in dated_rows:
-    _day_counts[r["date"]] = _day_counts.get(r["date"], 0) + 1
-point_x = []
-for r in dated_rows:
-    d = r["date"]
-    i = _day_seen.get(d, 0)
-    _day_seen[d] = i + 1
-    n = _day_counts[d]
-    point_x.append(dt.datetime.combine(d, dt.time(0, 0)) + dt.timedelta(hours=24 * (i + 0.5) / n))
-point_y = [r["compliance_pct"] for r in dated_rows]
-point_text = [
-    f"{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
-    + (f"<br>{r['caption']}" if r["caption"] else "")
-    for r in dated_rows
-]
-
-fig1 = go.Figure()
-fig1.add_trace(go.Scatter(
-    x=mean_x, y=mean_y, mode="lines", line=dict(color="#14213D", width=2),
-    hoverinfo="skip", showlegend=False,
-))
-fig1.add_trace(go.Scatter(
-    x=point_x, y=point_y, mode="markers",
-    marker=dict(size=10, color="#14213D", line=dict(color="#FFFFFF", width=2)),
-    text=point_text, hovertemplate="%{text}<extra></extra>", showlegend=False,
-))
-fig1.update_layout(
-    height=340, margin=dict(l=10, r=10, t=10, b=10),
-    plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
-    xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
-    yaxis=dict(range=[0, 100], ticksuffix="%", gridcolor="#E4E5E2", gridwidth=1,
-               zeroline=False, tickfont=dict(color="#4A4B47")),
-)
-st.plotly_chart(fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}")
-
-# ---------------------------------------------------------------------------
-# chart 2 -- violation-type breakdown (its own separate chart/axis -- counts,
-# never forced onto the % axis above)
-# ---------------------------------------------------------------------------
-
-tracked_slots = [s for s in _ALL_SLOTS if any(
-    b["key"] in detector.SLOT_ITEMS[s] for r in dated_rows for b in r["raw"]
-)]
-
-if tracked_slots:
-    st.markdown('<div class="hv-h1" style="font-size:16px;margin:22px 0 2px">VIOLATIONS BY TYPE</div>', unsafe_allow_html=True)
-    st.caption("Count of missing-PPE findings per date, by item type -- grouped bars side by "
-               "side (not stacked), so each type's count is read straight off its own bar height.")
-
-    by_date_slot = {}
-    for r in dated_rows:
-        acc = by_date_slot.setdefault(r["date"], {s: 0 for s in tracked_slots})
-        for s in tracked_slots:
-            acc[s] += r["missing_counts"][s]
-
-    max_count = max((by_date_slot[d][s] for d in dates_sorted for s in tracked_slots), default=0)
-    # Clean integer ticks for a small-count series (0,1,2,...) rather than
-    # Plotly's own auto-picked fractional ticks (0.2/0.4/...) for a max of 1.
-    dtick = 1 if max_count <= 12 else max(1, round(max_count / 8))
-
-    fig2 = go.Figure()
-    for slot in tracked_slots:  # fixed order (matches _ALL_SLOTS) -- never cycled/reordered
-        neg_key = detector.SLOT_ITEMS[slot][1]
-        color = detector.CLASS_META[neg_key]["color"]
-        label = _VIOLATION_LABELS[slot]
-        y = [by_date_slot[d][slot] for d in dates_sorted]
-        fig2.add_trace(go.Bar(
-            x=dates_sorted, y=y, name=label, marker=dict(color=color),
-            hovertemplate=f"{label}: " + "%{y}<extra></extra>",
-        ))
-    fig2.update_layout(
-        height=320, margin=dict(l=10, r=10, t=10, b=10),
-        barmode="group", bargap=0.25, bargroupgap=0.06,
-        plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-        xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
-        yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
-                   rangemode="tozero", dtick=dtick, tick0=0),
-    )
-    st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig2_{_rows_sig}")
-else:
-    st.caption("The loaded model hasn't detected any tracked PPE item across these photos yet -- "
-               "nothing to break down by type.")
-
-# ---------------------------------------------------------------------------
-# 3. filmstrip -- every saved photo, in date order, click-free (see
-# model_compare.py's own "not clickable yet" note -- same scope call here)
-# ---------------------------------------------------------------------------
-
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:10px">PHOTOS</div>', unsafe_allow_html=True)
-
 by_key = {r["key"]: r for r in rows + invalid}
 
-film_cols = st.columns(4)
-for i, r in enumerate(rows + invalid):
-    img = th.load_image(r["key"])
-    if img is None:
-        continue
-    # Reuses the same correction-aware assessment the charts above were
-    # built from (computed once, in the rows loop) -- a corrected photo's
-    # thumbnail and verdict badge always match what it contributed to the
-    # trend, instead of silently showing the raw model's read again here.
-    assessment = r["assessment"]
-    thumb = vh.draw_overlay(img, assessment["persons"], show_boxes=True, show_labels=False)
-    with film_cols[i % 4]:
+if not manifest:
+    st.info("No timeline entries yet. Open **MANAGE PHOTOS** below to upload some and get started.")
+else:
+    if invalid:
+        st.warning(f"{len(invalid)} timeline entr{'y has' if len(invalid) == 1 else 'ies have'} an unreadable date "
+                   f"and are excluded from the chart below (still shown in the filmstrip).")
+
+    st.markdown(
+        f'<div style="font-size:12.5px;color:#4A4B47;margin-bottom:14px">Recomputed at threshold '
+        f'<b>{threshold:.2f}</b> using the same WHAT COUNTS AS COMPLIANT rule set as the Demo page. '
+        f'Change either there to see this update here.</div>',
+        unsafe_allow_html=True,
+    )
+
+    # per-date mean compliance -- the line; individual photos -- the dots.
+    # Two different questions ("what's the trend" vs "what's this one photo"),
+    # never forced onto the same number.
+    mean_by_date = {}
+    for r in rows:
+        if r["compliance_pct"] is not None:
+            mean_by_date.setdefault(r["date"], []).append(r["compliance_pct"])
+    dates_sorted = sorted(mean_by_date)
+    # Anchored at midday, not midnight -- dots below are positioned at each
+    # photo's actual tagged time (see point_x), so the line needs to sit
+    # roughly centered among a day's dots instead of to their left at 00:00,
+    # which used to make the trend line look disconnected from what the axis's
+    # own hour ticks show.
+    mean_x = [dt.datetime.combine(d, dt.time(12, 0)) for d in dates_sorted]
+    mean_y = [round(sum(mean_by_date[d]) / len(mean_by_date[d]), 1) for d in dates_sorted]
+
+    # ---------------------------------------------------------------------------
+    # hero stat tiles
+    # ---------------------------------------------------------------------------
+
+    dated_rows = [r for r in rows if r["compliance_pct"] is not None]
+    date_range_txt = f"{rows[0]['date'].isoformat()} → {rows[-1]['date'].isoformat()}" if rows else "—"
+    delta_txt, delta_sub = "—", "not enough dated photos yet"
+    if len(dates_sorted) >= 2:
+        delta = mean_y[-1] - mean_y[0]
+        sign = "+" if delta >= 0 else ""
+        delta_txt = f"{sign}{delta:.0f} pts"
+        delta_sub = f"{mean_y[0]:.0f}% on {dates_sorted[0].isoformat()} → {mean_y[-1]:.0f}% on {dates_sorted[-1].isoformat()}"
+
+    t1, t2, t3 = st.columns(3)
+    with t1:
         st.markdown(f"""
-        <div style="background:#FFFFFF;border:1px solid #C4C6C0;margin-bottom:10px" title="{r['name']}">
-          <img src="data:image/jpeg;base64,{vh.b64_image(thumb, max_dim=320)}"
-               style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"/>
-          <div style="padding:6px 8px;display:flex;flex-direction:column;gap:4px">
-            <span class="hv-mono" style="font-size:10.5px;color:#4A4B47">{_fmt_dt(r['dt']) or r['date_str'] or 'no date'}</span>
-            {vh.verdict_badge(assessment["verdict"])}
-            {'<span class="hv-mono" style="font-size:10px;color:#1B7A3D">✓ MANUALLY CORRECTED</span>' if r["is_corrected"] else ''}
-            {f'<span style="font-size:11px;color:#71736D">{r["caption"]}</span>' if r["caption"] else ""}
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-        bc1, bc2 = st.columns(2)
-        with bc1:
-            if st.button("✎ Correct", key=f"tl_correct_{r['key']}", width="stretch"):
-                st.session_state["_tl_editing_key"] = r["key"]
-                st.rerun()
-        with bc2:
-            if st.button("✕ Remove", key=f"tl_remove_{r['key']}", width="stretch"):
-                th.delete_entry(r["key"])
-                st.rerun()
-        if st.button("🗓 Edit date & time", key=f"tl_editmeta_btn_{r['key']}", width="stretch"):
-            st.session_state["_tl_editing_meta_key"] = (
-                None if st.session_state.get("_tl_editing_meta_key") == r["key"] else r["key"]
-            )
-            st.rerun()
-        if st.session_state.get("_tl_editing_meta_key") == r["key"]:
-            # A wrong date at upload, or backdating/future-dating a photo
-            # for a demo narrative -- fixed here without re-uploading the
-            # photo. Same wide-open min/max as the upload form above:
-            # a future date is a legitimate, intentional input on this page.
-            cur_dt = r["dt"] or dt.datetime.now()
-            with st.form(key=f"tl_meta_form_{r['key']}"):
-                new_date = st.date_input("Date taken", value=cur_dt.date(),
-                                          min_value=dt.date(2000, 1, 1), max_value=dt.date(2100, 1, 1),
-                                          key=f"tl_editdate_{r['key']}")
-                new_time = st.time_input("Time taken",
-                                          value=cur_dt.time().replace(second=0, microsecond=0),
-                                          step=300, key=f"tl_edittime_{r['key']}")
-                new_caption = st.text_input("Caption (optional)", value=r["caption"],
-                                             key=f"tl_editcaption_{r['key']}")
-                fc1, fc2 = st.columns(2)
-                with fc1:
-                    save_clicked = st.form_submit_button("Save", type="primary", width="stretch")
-                with fc2:
-                    cancel_clicked = st.form_submit_button("Cancel", width="stretch")
-            if save_clicked:
-                new_dt = dt.datetime.combine(new_date, new_time)
-                th.update_meta(r["key"], date_str=new_dt.isoformat(), caption=new_caption)
-                st.session_state["_tl_editing_meta_key"] = None
-                st.toast("Date updated.")
-                st.rerun()
-            if cancel_clicked:
-                st.session_state["_tl_editing_meta_key"] = None
-                st.rerun()
+        <div style="background:#141414;color:#FFFFFF;padding:16px 20px 14px;height:100%">
+          <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#9B9D97">PHOTOS IN TIMELINE</div>
+          <div class="hv-h1" style="font-size:40px;line-height:1;color:#FFFFFF">{len(manifest)}</div>
+          <div style="font-size:12px;color:#9B9D97">{len(rows)} dated · {len(invalid)} unreadable date</div>
+        </div>""", unsafe_allow_html=True)
+    with t2:
+        st.markdown(f"""
+        <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;height:100%">
+          <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">DATE RANGE</div>
+          <div class="hv-h1" style="font-size:22px;line-height:1.3;margin-top:6px">{date_range_txt}</div>
+        </div>""", unsafe_allow_html=True)
+    with t3:
+        st.markdown(f"""
+        <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;height:100%">
+          <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">COMPLIANCE CHANGE</div>
+          <div class="hv-h1" style="font-size:40px;line-height:1">{delta_txt}</div>
+          <div style="font-size:12px;color:#71736D">{delta_sub}</div>
+        </div>""", unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# 4. manual correction editor -- full page width (not squeezed into a
-# filmstrip cell), reusing the exact same box editor the Demo page's detail
-# view uses, so it looks and behaves like something already familiar rather
-# than a second, different editor. Relying on the model alone for this
-# page defeats the point of a *hand-curated* demo timeline -- this is the
-# override the rows loop above already checks for via
-# ah.load_existing_correction, on every rerun, so saving here immediately
-# updates both charts and every thumbnail, not just this one.
-# ---------------------------------------------------------------------------
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-editing_key = st.session_state.get("_tl_editing_key")
-if editing_key is not None:
-    editing_row = by_key.get(editing_key)
-    st.markdown("<hr>", unsafe_allow_html=True)
-    if editing_row is None:
-        st.session_state["_tl_editing_key"] = None
-    else:
-        img = th.load_image(editing_key)
-        st.markdown(
-            f'<div class="hv-h1" style="font-size:16px;margin-bottom:4px">CORRECTING: {editing_row["name"]}</div>',
-            unsafe_allow_html=True,
+    # ---------------------------------------------------------------------------
+    # chart 1 -- compliance % trend (its own axis: 0-100%, nothing else sharing it)
+    # ---------------------------------------------------------------------------
+
+    st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
+    st.caption("Line = mean compliance per date. Dots = individual photos, evenly spread across "
+               "each day in tagged order (hover for detail).")
+
+    # Evenly spread across the day (assumes ~3 photos/day, but works for any
+    # per-day count) rather than plotted at each photo's literal tagged time --
+    # real capture times tend to cluster in a working-hours window (e.g.
+    # 09:00/12:00/15:00), which left a big empty gap overnight between days and
+    # a cramped one within. dated_rows is already in chronological order (see
+    # rows.sort by full dt above), so a running per-day index is enough to slot
+    # each day's photos into equal-width positions across that day, in the same
+    # order their tagged times put them in.
+    _day_counts, _day_seen = {}, {}
+    for r in dated_rows:
+        _day_counts[r["date"]] = _day_counts.get(r["date"], 0) + 1
+    point_x = []
+    for r in dated_rows:
+        d = r["date"]
+        i = _day_seen.get(d, 0)
+        _day_seen[d] = i + 1
+        n = _day_counts[d]
+        point_x.append(dt.datetime.combine(d, dt.time(0, 0)) + dt.timedelta(hours=24 * (i + 0.5) / n))
+    point_y = [r["compliance_pct"] for r in dated_rows]
+    point_text = [
+        f"{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
+        + (f"<br>{r['caption']}" if r["caption"] else "")
+        for r in dated_rows
+    ]
+
+    fig1 = go.Figure()
+    fig1.add_trace(go.Scatter(
+        x=mean_x, y=mean_y, mode="lines", line=dict(color="#14213D", width=2),
+        hoverinfo="skip", showlegend=False,
+    ))
+    fig1.add_trace(go.Scatter(
+        x=point_x, y=point_y, mode="markers",
+        marker=dict(size=10, color="#14213D", line=dict(color="#FFFFFF", width=2)),
+        text=point_text, hovertemplate="%{text}<extra></extra>", showlegend=False,
+    ))
+    fig1.update_layout(
+        height=340, margin=dict(l=10, r=10, t=10, b=10),
+        plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
+        xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
+        yaxis=dict(range=[0, 100], ticksuffix="%", gridcolor="#E4E5E2", gridwidth=1,
+                   zeroline=False, tickfont=dict(color="#4A4B47")),
+    )
+    st.plotly_chart(fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}")
+
+    # ---------------------------------------------------------------------------
+    # chart 2 -- violation-type breakdown (its own separate chart/axis -- counts,
+    # never forced onto the % axis above)
+    # ---------------------------------------------------------------------------
+
+    tracked_slots = [s for s in _ALL_SLOTS if any(
+        b["key"] in detector.SLOT_ITEMS[s] for r in dated_rows for b in r["raw"]
+    )]
+
+    if tracked_slots:
+        st.markdown('<div class="hv-h1" style="font-size:16px;margin:22px 0 2px">VIOLATIONS BY TYPE</div>', unsafe_allow_html=True)
+        st.caption("Count of missing-PPE findings per date, by item type -- grouped bars side by "
+                   "side (not stacked), so each type's count is read straight off its own bar height.")
+
+        by_date_slot = {}
+        for r in dated_rows:
+            acc = by_date_slot.setdefault(r["date"], {s: 0 for s in tracked_slots})
+            for s in tracked_slots:
+                acc[s] += r["missing_counts"][s]
+
+        max_count = max((by_date_slot[d][s] for d in dates_sorted for s in tracked_slots), default=0)
+        # Clean integer ticks for a small-count series (0,1,2,...) rather than
+        # Plotly's own auto-picked fractional ticks (0.2/0.4/...) for a max of 1.
+        dtick = 1 if max_count <= 12 else max(1, round(max_count / 8))
+
+        fig2 = go.Figure()
+        for slot in tracked_slots:  # fixed order (matches _ALL_SLOTS) -- never cycled/reordered
+            neg_key = detector.SLOT_ITEMS[slot][1]
+            color = detector.CLASS_META[neg_key]["color"]
+            label = _VIOLATION_LABELS[slot]
+            y = [by_date_slot[d][slot] for d in dates_sorted]
+            fig2.add_trace(go.Bar(
+                x=dates_sorted, y=y, name=label, marker=dict(color=color),
+                hovertemplate=f"{label}: " + "%{y}<extra></extra>",
+            ))
+        fig2.update_layout(
+            height=320, margin=dict(l=10, r=10, t=10, b=10),
+            barmode="group", bargap=0.25, bargroupgap=0.06,
+            plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
+            yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
+                       rangemode="tozero", dtick=dtick, tick0=0),
         )
-        if st.button("Done correcting", key="tl_done_correcting"):
-            st.session_state["_tl_editing_key"] = None
+        st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig2_{_rows_sig}")
+    else:
+        st.caption("The loaded model hasn't detected any tracked PPE item across these photos yet -- "
+                   "nothing to break down by type.")
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+with st.expander("📁 MANAGE PHOTOS — upload, correct labels, edit dates", expanded=not manifest):
+    # ---------------------------------------------------------------------------
+    # 2. upload + label new photos (not yet part of the saved timeline)
+    # ---------------------------------------------------------------------------
+
+    st.session_state.setdefault("_timeline_pending", {})
+    pending = st.session_state._timeline_pending
+    saved_keys = set(manifest.keys())  # `manifest` already loaded above, for the charts
+
+    st.markdown('<div class="hv-h1" style="font-size:18px;margin-bottom:6px">ADD PHOTOS</div>', unsafe_allow_html=True)
+    st.caption("Re-uploading a photo that's already in the timeline lets you retag its date, time, or "
+               "caption -- same content-hash key (see timeline_helpers.save_entry), so it updates that "
+               "entry in place rather than duplicating it.")
+    uploaded_files = st.file_uploader(
+        "Select CCTV / site photos", type=["jpg", "jpeg", "png"], accept_multiple_files=True,
+        label_visibility="collapsed", key="historical_uploader",
+    )
+    for f in uploaded_files or []:
+        raw_bytes = f.getvalue()
+        key = hashlib.md5(raw_bytes).hexdigest()
+        if key in pending:
+            continue  # already waiting to be (re-)labeled below
+        is_reupload = key in saved_keys
+        img = vh.load_image(raw_bytes)
+        # Already-saved photo: reuse its stored raw detections rather than
+        # rerunning the model (retagging is about the date/caption, not the
+        # detections) and pre-fill the form below with its current values.
+        raw = th.load_raw(key) if is_reupload else detector.detect_raw(model, img)
+        existing = manifest.get(key, {})
+        pending[key] = {"image": img, "raw": raw, "name": f.name, "is_reupload": is_reupload,
+                         "existing_date": existing.get("date", ""), "existing_caption": existing.get("caption", "")}
+
+    if pending:
+        st.caption(f"{len(pending)} photo{'s' if len(pending) != 1 else ''} awaiting a date and time before "
+                   f"they're added to the timeline -- set both per photo so a whole day's batch (several "
+                   f"photos, different times) orders and reads correctly:")
+        to_save = []  # (key, datetime_value, caption_value) captured this run, used if the button below is clicked
+        for key, p in list(pending.items()):
+            try:
+                existing_dt = dt.datetime.fromisoformat(p["existing_date"]) if p.get("existing_date") else None
+            except ValueError:
+                existing_dt = None
+            default_date = existing_dt.date() if existing_dt else dt.date.today()
+            default_time = (existing_dt.time().replace(second=0, microsecond=0) if existing_dt
+                             else dt.datetime.now().time().replace(second=0, microsecond=0))
+
+            c1, c2, c3, c4, c5 = st.columns([1, 1.4, 1.2, 2.4, 1])
+            with c1:
+                st.image(p["image"], width="stretch")
+                if p.get("is_reupload"):
+                    st.caption("Already in timeline -- retagging")
+            with c2:
+                # min/max deliberately wide open (not just Streamlit's default
+                # ~10-year window either side of value) -- this page is also used
+                # to pre-stage demo photos with a future date before the real day
+                # arrives, so a future date is a legitimate, intentional input here,
+                # never something to validate against.
+                date_val = st.date_input("Date taken", value=default_date,
+                                          min_value=dt.date(2000, 1, 1), max_value=dt.date(2100, 1, 1),
+                                          key=f"tl_date_{key}")
+            with c3:
+                time_val = st.time_input("Time taken", value=default_time,
+                                          step=300, key=f"tl_time_{key}")
+            with c4:
+                caption_val = st.text_input("Caption (optional)", value=p.get("existing_caption", ""), key=f"tl_caption_{key}",
+                                             placeholder="e.g. Week 1, morning shift")
+            with c5:
+                if st.button("✕ Discard", key=f"tl_discard_{key}"):
+                    pending.pop(key, None)
+                    st.rerun()
+            to_save.append((key, dt.datetime.combine(date_val, time_val), caption_val))
+
+        if st.button(f"Save {len(pending)} photo{'s' if len(pending) != 1 else ''} to timeline",
+                     key="tl_add_all", type="primary"):
+            for key, dt_val, caption_val in to_save:
+                p = pending[key]
+                th.save_entry(key, p["image"], p["raw"], p["name"], dt_val.isoformat(), caption_val)
+            st.session_state._timeline_pending = {}
+            st.toast(f"Saved {len(to_save)} photo{'s' if len(to_save) != 1 else ''} to the timeline.")
             st.rerun()
-        it = {
-            "key": f"tl_{editing_key}", "image": img, "name": editing_row["name"],
-            "corrected_boxes": editing_row["corrected_boxes"],
-        }
-        ah.render_editor(it, editing_row["ai_assessment"], threshold)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------------------------------
+    # 3. filmstrip -- every saved photo, in date order, click-free (see
+    # model_compare.py's own "not clickable yet" note -- same scope call here)
+    # ---------------------------------------------------------------------------
+
+    st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:10px">PHOTOS</div>', unsafe_allow_html=True)
+
+    film_cols = st.columns(4)
+    for i, r in enumerate(rows + invalid):
+        img = th.load_image(r["key"])
+        if img is None:
+            continue
+        # Reuses the same correction-aware assessment the charts above were
+        # built from (computed once, in the rows loop) -- a corrected photo's
+        # thumbnail and verdict badge always match what it contributed to the
+        # trend, instead of silently showing the raw model's read again here.
+        assessment = r["assessment"]
+        thumb = vh.draw_overlay(img, assessment["persons"], show_boxes=True, show_labels=False)
+        with film_cols[i % 4]:
+            st.markdown(f"""
+            <div style="background:#FFFFFF;border:1px solid #C4C6C0;margin-bottom:10px" title="{r['name']}">
+              <img src="data:image/jpeg;base64,{vh.b64_image(thumb, max_dim=320)}"
+                   style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"/>
+              <div style="padding:6px 8px;display:flex;flex-direction:column;gap:4px">
+                <span class="hv-mono" style="font-size:10.5px;color:#4A4B47">{_fmt_dt(r['dt']) or r['date_str'] or 'no date'}</span>
+                {vh.verdict_badge(assessment["verdict"])}
+                {'<span class="hv-mono" style="font-size:10px;color:#1B7A3D">✓ MANUALLY CORRECTED</span>' if r["is_corrected"] else ''}
+                {f'<span style="font-size:11px;color:#71736D">{r["caption"]}</span>' if r["caption"] else ""}
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                if st.button("✎ Correct", key=f"tl_correct_{r['key']}", width="stretch"):
+                    st.session_state["_tl_editing_key"] = r["key"]
+                    st.rerun()
+            with bc2:
+                if st.button("✕ Remove", key=f"tl_remove_{r['key']}", width="stretch"):
+                    th.delete_entry(r["key"])
+                    st.rerun()
+            if st.button("🗓 Edit date & time", key=f"tl_editmeta_btn_{r['key']}", width="stretch"):
+                st.session_state["_tl_editing_meta_key"] = (
+                    None if st.session_state.get("_tl_editing_meta_key") == r["key"] else r["key"]
+                )
+                st.rerun()
+            if st.session_state.get("_tl_editing_meta_key") == r["key"]:
+                # A wrong date at upload, or backdating/future-dating a photo
+                # for a demo narrative -- fixed here without re-uploading the
+                # photo. Same wide-open min/max as the upload form above:
+                # a future date is a legitimate, intentional input on this page.
+                cur_dt = r["dt"] or dt.datetime.now()
+                with st.form(key=f"tl_meta_form_{r['key']}"):
+                    new_date = st.date_input("Date taken", value=cur_dt.date(),
+                                              min_value=dt.date(2000, 1, 1), max_value=dt.date(2100, 1, 1),
+                                              key=f"tl_editdate_{r['key']}")
+                    new_time = st.time_input("Time taken",
+                                              value=cur_dt.time().replace(second=0, microsecond=0),
+                                              step=300, key=f"tl_edittime_{r['key']}")
+                    new_caption = st.text_input("Caption (optional)", value=r["caption"],
+                                                 key=f"tl_editcaption_{r['key']}")
+                    fc1, fc2 = st.columns(2)
+                    with fc1:
+                        save_clicked = st.form_submit_button("Save", type="primary", width="stretch")
+                    with fc2:
+                        cancel_clicked = st.form_submit_button("Cancel", width="stretch")
+                if save_clicked:
+                    new_dt = dt.datetime.combine(new_date, new_time)
+                    th.update_meta(r["key"], date_str=new_dt.isoformat(), caption=new_caption)
+                    st.session_state["_tl_editing_meta_key"] = None
+                    st.toast("Date updated.")
+                    st.rerun()
+                if cancel_clicked:
+                    st.session_state["_tl_editing_meta_key"] = None
+                    st.rerun()
+
+    # ---------------------------------------------------------------------------
+    # 4. manual correction editor -- full page width (not squeezed into a
+    # filmstrip cell), reusing the exact same box editor the Demo page's detail
+    # view uses, so it looks and behaves like something already familiar rather
+    # than a second, different editor. Relying on the model alone for this
+    # page defeats the point of a *hand-curated* demo timeline -- this is the
+    # override the rows loop above already checks for via
+    # ah.load_existing_correction, on every rerun, so saving here immediately
+    # updates both charts and every thumbnail, not just this one.
+    # ---------------------------------------------------------------------------
+
+    editing_key = st.session_state.get("_tl_editing_key")
+    if editing_key is not None:
+        editing_row = by_key.get(editing_key)
+        st.markdown("<hr>", unsafe_allow_html=True)
+        if editing_row is None:
+            st.session_state["_tl_editing_key"] = None
+        else:
+            img = th.load_image(editing_key)
+            st.markdown(
+                f'<div class="hv-h1" style="font-size:16px;margin-bottom:4px">CORRECTING: {editing_row["name"]}</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Done correcting", key="tl_done_correcting"):
+                st.session_state["_tl_editing_key"] = None
+                st.rerun()
+            it = {
+                "key": f"tl_{editing_key}", "image": img, "name": editing_row["name"],
+                "corrected_boxes": editing_row["corrected_boxes"],
+            }
+            ah.render_editor(it, editing_row["ai_assessment"], threshold)
