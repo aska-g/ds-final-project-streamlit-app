@@ -209,6 +209,15 @@ for key, meta in manifest.items():
 
 rows.sort(key=lambda r: r["dt"])  # exact time, so same-day batches order correctly within their day
 
+# Signature of everything that can move a point on either chart below
+# (which day/time it's bucketed into, its caption). Forces a fresh
+# st.plotly_chart component identity whenever a metadata edit changes this,
+# so an edited date/time is never masked by the browser reusing the
+# previous chart render.
+_rows_sig = hashlib.md5(
+    "|".join(f"{r['key']}:{r['date_str']}:{r['caption']}" for r in rows + invalid).encode()
+).hexdigest()[:12]
+
 if invalid:
     st.warning(f"{len(invalid)} timeline entr{'y has' if len(invalid) == 1 else 'ies have'} an unreadable date "
                f"and are excluded from the chart below (still shown in the filmstrip).")
@@ -278,7 +287,7 @@ st.caption("Line = mean compliance per date. Dots = individual photos (hover for
 point_x = [r["date"] for r in dated_rows]
 point_y = [r["compliance_pct"] for r in dated_rows]
 point_text = [
-    f"{r['name']}<br>{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
+    f"{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
     + (f"<br>{r['caption']}" if r["caption"] else "")
     for r in dated_rows
 ]
@@ -301,7 +310,7 @@ fig1.update_layout(
     yaxis=dict(range=[0, 100], ticksuffix="%", gridcolor="#E4E5E2", gridwidth=1,
                zeroline=False, tickfont=dict(color="#4A4B47")),
 )
-st.plotly_chart(fig1, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}")
 
 # ---------------------------------------------------------------------------
 # chart 2 -- violation-type breakdown (its own separate chart/axis -- counts,
@@ -348,7 +357,7 @@ if tracked_slots:
         yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
                    rangemode="tozero", dtick=dtick, tick0=0),
     )
-    st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig2_{_rows_sig}")
 else:
     st.caption("The loaded model hasn't detected any tracked PPE item across these photos yet -- "
                "nothing to break down by type.")
