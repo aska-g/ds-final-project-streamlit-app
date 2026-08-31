@@ -274,11 +274,14 @@ else:
             # midnight, which falls *outside* the plotted range (mean_x
             # sits at noon) and silently drops the first day's label off
             # the left edge.
-            xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47"),
+            xaxis=dict(showgrid=False, showline=False, tickfont=dict(color="#4A4B47"),
                        tickmode="array", tickvals=mean_x,
                        ticktext=[d.strftime("%b %-d") for d in dates_sorted]),
+            # Zeroline (not the axis line) is the one visible baseline here --
+            # a plain axis line just below it read as a second, redundant line.
             yaxis=dict(range=[0, 100], ticksuffix="%", gridcolor="#E4E5E2", gridwidth=1,
-                       zeroline=False, tickfont=dict(color="#4A4B47")),
+                       zeroline=True, zerolinecolor="#71736D", zerolinewidth=1,
+                       tickfont=dict(color="#4A4B47")),
         )
         fig1_event = st.plotly_chart(
             fig1, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig1_{_rows_sig}",
@@ -319,8 +322,7 @@ else:
             with dc1:
                 st.markdown(
                     f'<div class="hv-h1" style="font-size:16px">{selected_day.isoformat()} '
-                    f'<span class="hv-mono" style="font-size:12px;color:#71736D;font-weight:400">'
-                    f'{len(day_rows)} photo{"s" if len(day_rows) != 1 else ""}</span></div>',
+                    f'<span class="hv-mono" style="font-size:12px;color:#71736D;font-weight:400">',
                     unsafe_allow_html=True,
                 )
             with dc2:
@@ -437,8 +439,11 @@ else:
                 plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
                 legend=dict(orientation="h", yanchor="top", y=1.21, xanchor="left", x=0),
-                xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
-                yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
+                xaxis=dict(showgrid=False, showline=False, tickfont=dict(color="#4A4B47")),
+                # Zeroline (not the axis line) is the one visible baseline here --
+                # a plain axis line just below it read as a second, redundant line.
+                yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, tickfont=dict(color="#4A4B47"),
+                           zeroline=True, zerolinecolor="#71736D", zerolinewidth=1,
                            rangemode="tozero", dtick=dtick, tick0=0),
             )
             st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False}, key=f"tl_fig2_{_rows_sig}")
