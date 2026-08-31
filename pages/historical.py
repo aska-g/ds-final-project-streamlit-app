@@ -211,20 +211,20 @@ else:
         st.markdown(f"""
         <div style="background:#141414;color:#FFFFFF;padding:16px 20px 14px;min-height:{_TILE_MIN_HEIGHT}">
           <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#9B9D97">PHOTOS IN TIMELINE</div>
-          <div class="hv-h1" style="font-size:40px;line-height:1;color:#FFFFFF">{len(manifest)}</div>
+          <div class="hv-h1" style="font-size:40px;line-height:1.3;color:#FFFFFF">{len(manifest)}</div>
         </div>""", unsafe_allow_html=True)
     with t2:
         st.markdown(f"""
         <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;min-height:{_TILE_MIN_HEIGHT}">
           <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">DATE RANGE</div>
-          <div class="hv-h1" style="font-size:22px;line-height:1.3;margin-top:10px">{date_range_txt}</div>
+          <div class="hv-h1" style="font-size:34px;line-height:1.3;margin-top:10px">{date_range_txt}</div>
         </div>""", unsafe_allow_html=True)
     with t3:
         st.markdown(f"""
         <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;min-height:{_TILE_MIN_HEIGHT}">
           <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">COMPLIANCE CHANGE</div>
-          <div class="hv-h1" style="font-size:40px;line-height:1">{delta_txt}</div>
-          <div style="font-size:12px;color:#71736D;margin-top:10px">{delta_sub}</div>
+          <div class="hv-h1" style="font-size:40px;line-height:1.3">{delta_txt}</div>
+
         </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
