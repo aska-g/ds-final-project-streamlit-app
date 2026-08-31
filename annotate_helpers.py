@@ -471,8 +471,17 @@ def render_editor(it, assessment, threshold):
                       key=f"save_{key}", type="primary"):
             save_correction(it["image"], boxes, it["name"], detector.MODEL_LABEL, threshold)
             snapshot = [dict(b) for b in boxes]
-            st.session_state._detections[key]["corrected"] = True
-            st.session_state._detections[key]["corrected_boxes"] = snapshot
+            # st.session_state._detections is the Demo page's own upload-batch
+            # cache (see pages/demo.py) -- syncing "corrected" into it there
+            # keeps that page's gallery in sync without a rerun-triggered
+            # reload. Other callers of this editor (e.g. the Historical Data
+            # page) never populate that cache for their own item keys, so
+            # only touch it here if this key is actually in it -- `it`
+            # (updated right below, same as always) is what every caller
+            # actually relies on for the result of this save.
+            if key in st.session_state.get("_detections", {}):
+                st.session_state._detections[key]["corrected"] = True
+                st.session_state._detections[key]["corrected_boxes"] = snapshot
             it["corrected"] = True
             it["corrected_boxes"] = snapshot
             st.toast(f"Saved corrected labels for {it['name']} — now shown everywhere as this photo's truth.")
