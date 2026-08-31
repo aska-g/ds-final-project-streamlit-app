@@ -31,7 +31,10 @@ A photo's date/time (and caption) aren't locked in at upload either --
 each filmstrip card also has an "Edit date & time" toggle for fixing a
 wrong date after the fact, or nudging a photo earlier/later/into the
 future for a demo narrative, without re-uploading it (see
-timeline_helpers.update_meta).
+timeline_helpers.update_meta). Re-uploading the same file works too --
+it's still matched by content hash, so it's treated as a retag of that
+existing entry (prefilled with its current date/time/caption below,
+easy to change) rather than silently ignored or duplicated.
 """
 
 import datetime as dt
@@ -94,9 +97,13 @@ def _fmt_dt(d):
 
 st.session_state.setdefault("_timeline_pending", {})
 pending = st.session_state._timeline_pending
-saved_keys = set(th.load_manifest().keys())
+manifest_now = th.load_manifest()
+saved_keys = set(manifest_now.keys())
 
 st.markdown('<div class="hv-h1" style="font-size:18px;margin-bottom:6px">ADD PHOTOS</div>', unsafe_allow_html=True)
+st.caption("Re-uploading a photo that's already in the timeline lets you retag its date, time, or "
+           "caption -- same content-hash key (see timeline_helpers.save_entry), so it updates that "
+           "entry in place rather than duplicating it.")
 uploaded_files = st.file_uploader(
     "Select CCTV / site photos", type=["jpg", "jpeg", "png"], accept_multiple_files=True,
     label_visibility="collapsed", key="historical_uploader",
@@ -104,11 +111,17 @@ uploaded_files = st.file_uploader(
 for f in uploaded_files or []:
     raw_bytes = f.getvalue()
     key = hashlib.md5(raw_bytes).hexdigest()
-    if key in saved_keys or key in pending:
-        continue  # already in the timeline, or already waiting to be labeled below
+    if key in pending:
+        continue  # already waiting to be (re-)labeled below
+    is_reupload = key in saved_keys
     img = vh.load_image(raw_bytes)
-    raw = detector.detect_raw(model, img)
-    pending[key] = {"image": img, "raw": raw, "name": f.name}
+    # Already-saved photo: reuse its stored raw detections rather than
+    # rerunning the model (retagging is about the date/caption, not the
+    # detections) and pre-fill the form below with its current values.
+    raw = th.load_raw(key) if is_reupload else detector.detect_raw(model, img)
+    existing = manifest_now.get(key, {})
+    pending[key] = {"image": img, "raw": raw, "name": f.name, "is_reupload": is_reupload,
+                     "existing_date": existing.get("date", ""), "existing_caption": existing.get("caption", "")}
 
 if pending:
     st.caption(f"{len(pending)} photo{'s' if len(pending) != 1 else ''} awaiting a date and time before "
@@ -116,23 +129,33 @@ if pending:
                f"photos, different times) orders and reads correctly:")
     to_save = []  # (key, datetime_value, caption_value) captured this run, used if the button below is clicked
     for key, p in list(pending.items()):
+        try:
+            existing_dt = dt.datetime.fromisoformat(p["existing_date"]) if p.get("existing_date") else None
+        except ValueError:
+            existing_dt = None
+        default_date = existing_dt.date() if existing_dt else dt.date.today()
+        default_time = (existing_dt.time().replace(second=0, microsecond=0) if existing_dt
+                         else dt.datetime.now().time().replace(second=0, microsecond=0))
+
         c1, c2, c3, c4, c5 = st.columns([1, 1.4, 1.2, 2.4, 1])
         with c1:
             st.image(p["image"], width="stretch")
+            if p.get("is_reupload"):
+                st.caption("Already in timeline -- retagging")
         with c2:
             # min/max deliberately wide open (not just Streamlit's default
             # ~10-year window either side of value) -- this page is also used
             # to pre-stage demo photos with a future date before the real day
             # arrives, so a future date is a legitimate, intentional input here,
             # never something to validate against.
-            date_val = st.date_input("Date taken", value=dt.date.today(),
+            date_val = st.date_input("Date taken", value=default_date,
                                       min_value=dt.date(2000, 1, 1), max_value=dt.date(2100, 1, 1),
                                       key=f"tl_date_{key}")
         with c3:
-            time_val = st.time_input("Time taken", value=dt.datetime.now().time().replace(second=0, microsecond=0),
+            time_val = st.time_input("Time taken", value=default_time,
                                       step=300, key=f"tl_time_{key}")
         with c4:
-            caption_val = st.text_input("Caption (optional)", value="", key=f"tl_caption_{key}",
+            caption_val = st.text_input("Caption (optional)", value=p.get("existing_caption", ""), key=f"tl_caption_{key}",
                                          placeholder="e.g. Week 1, morning shift")
         with c5:
             if st.button("✕ Discard", key=f"tl_discard_{key}"):
@@ -140,13 +163,13 @@ if pending:
                 st.rerun()
         to_save.append((key, dt.datetime.combine(date_val, time_val), caption_val))
 
-    if st.button(f"Add {len(pending)} photo{'s' if len(pending) != 1 else ''} to timeline",
+    if st.button(f"Save {len(pending)} photo{'s' if len(pending) != 1 else ''} to timeline",
                  key="tl_add_all", type="primary"):
         for key, dt_val, caption_val in to_save:
             p = pending[key]
             th.save_entry(key, p["image"], p["raw"], p["name"], dt_val.isoformat(), caption_val)
         st.session_state._timeline_pending = {}
-        st.toast(f"Added {len(to_save)} photo{'s' if len(to_save) != 1 else ''} to the timeline.")
+        st.toast(f"Saved {len(to_save)} photo{'s' if len(to_save) != 1 else ''} to the timeline.")
         st.rerun()
 
 st.markdown("<hr>", unsafe_allow_html=True)
