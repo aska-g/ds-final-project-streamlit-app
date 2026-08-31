@@ -201,26 +201,34 @@ else:
         delta_txt = f"{sign}{delta:.0f} pts"
         delta_sub = f"{mean_y[0]:.0f}% on {dates_sorted[0].isoformat()} → {mean_y[-1]:.0f}% on {dates_sorted[-1].isoformat()}"
 
+    # Fixed min-height (not height:100%, which only fills its own column's
+    # content box and does nothing to equalize across the three -- Streamlit
+    # columns don't stretch to match a sibling's height on their own) so all
+    # three tiles line up even though DATE RANGE has one less line of
+    # content than the other two. A bit of top margin on each subtitle line
+    # gives the big number some breathing room instead of sitting flush
+    # against the text underneath it.
+    _TILE_MIN_HEIGHT = "118px"
     t1, t2, t3 = st.columns(3)
     with t1:
         st.markdown(f"""
-        <div style="background:#141414;color:#FFFFFF;padding:16px 20px 14px;height:100%">
+        <div style="background:#141414;color:#FFFFFF;padding:16px 20px 14px;min-height:{_TILE_MIN_HEIGHT}">
           <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#9B9D97">PHOTOS IN TIMELINE</div>
           <div class="hv-h1" style="font-size:40px;line-height:1;color:#FFFFFF">{len(manifest)}</div>
-          <div style="font-size:12px;color:#9B9D97">{len(rows)} dated · {len(invalid)} unreadable date</div>
+          <div style="font-size:12px;color:#9B9D97;margin-top:10px">{len(rows)} dated · {len(invalid)} unreadable date</div>
         </div>""", unsafe_allow_html=True)
     with t2:
         st.markdown(f"""
-        <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;height:100%">
+        <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;min-height:{_TILE_MIN_HEIGHT}">
           <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">DATE RANGE</div>
-          <div class="hv-h1" style="font-size:22px;line-height:1.3;margin-top:6px">{date_range_txt}</div>
+          <div class="hv-h1" style="font-size:22px;line-height:1.3;margin-top:10px">{date_range_txt}</div>
         </div>""", unsafe_allow_html=True)
     with t3:
         st.markdown(f"""
-        <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;height:100%">
+        <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 20px 14px;min-height:{_TILE_MIN_HEIGHT}">
           <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#71736D">COMPLIANCE CHANGE</div>
           <div class="hv-h1" style="font-size:40px;line-height:1">{delta_txt}</div>
-          <div style="font-size:12px;color:#71736D">{delta_sub}</div>
+          <div style="font-size:12px;color:#71736D;margin-top:10px">{delta_sub}</div>
         </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
