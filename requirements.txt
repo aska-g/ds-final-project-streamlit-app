@@ -36,3 +36,4 @@ opencv-python-headless
 # `from streamlit_drawable_canvas import st_canvas` import -- no code changes
 # needed elsewhere), and is what annotate_helpers.py's box editor now uses.
 streamlit-drawable-canvas-fix  # image-detail-view box editor (annotate_helpers.py); needs the numpy shim in that file under numpy>=1.24
+requests  # gemini_caption.py: scene descriptions via the Gemini REST API
