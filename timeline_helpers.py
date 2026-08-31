@@ -88,6 +88,24 @@ def save_entry(key, image, raw_boxes, name, date_str, caption):
     _write_manifest(entries)
 
 
+def update_meta(key, date_str=None, caption=None):
+    """Edit an already-saved entry's date/time and/or caption in place --
+    the image and its raw detections are untouched, only the manifest row
+    changes. Lets a photo's timestamp be fixed after the fact (a wrong
+    date at upload, or backdating/future-dating a photo for a demo
+    narrative) without re-uploading it. Pass only the fields that
+    changed; the others keep their current value. No-op if `key` isn't
+    in the manifest (nothing to edit)."""
+    entries = load_manifest()
+    if key not in entries:
+        return
+    if date_str is not None:
+        entries[key]["date"] = date_str
+    if caption is not None:
+        entries[key]["caption"] = caption
+    _write_manifest(entries)
+
+
 def delete_entry(key):
     """Remove one photo from the timeline entirely -- image, raw
     detections, and its manifest row. No undo, same as this app's other

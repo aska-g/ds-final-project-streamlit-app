@@ -26,6 +26,12 @@ photo look cleaner than it is. Each photo in the filmstrip below has a
 page's detail view already uses, writing to the same data/corrections/
 store, so a correction here counts as this photo's ground truth in both
 charts and thumbnails immediately, not just a note for a future retrain.
+
+A photo's date/time (and caption) aren't locked in at upload either --
+each filmstrip card also has an "Edit date & time" toggle for fixing a
+wrong date after the fact, or nudging a photo earlier/later/into the
+future for a demo narrative, without re-uploading it (see
+timeline_helpers.update_meta).
 """
 
 import datetime as dt
@@ -389,6 +395,40 @@ for i, r in enumerate(rows + invalid):
         with bc2:
             if st.button("✕ Remove", key=f"tl_remove_{r['key']}", width="stretch"):
                 th.delete_entry(r["key"])
+                st.rerun()
+        if st.button("🗓 Edit date & time", key=f"tl_editmeta_btn_{r['key']}", width="stretch"):
+            st.session_state["_tl_editing_meta_key"] = (
+                None if st.session_state.get("_tl_editing_meta_key") == r["key"] else r["key"]
+            )
+            st.rerun()
+        if st.session_state.get("_tl_editing_meta_key") == r["key"]:
+            # A wrong date at upload, or backdating/future-dating a photo
+            # for a demo narrative -- fixed here without re-uploading the
+            # photo. Same wide-open min/max as the upload form above:
+            # a future date is a legitimate, intentional input on this page.
+            cur_dt = r["dt"] or dt.datetime.now()
+            with st.form(key=f"tl_meta_form_{r['key']}"):
+                new_date = st.date_input("Date taken", value=cur_dt.date(),
+                                          min_value=dt.date(2000, 1, 1), max_value=dt.date(2100, 1, 1),
+                                          key=f"tl_editdate_{r['key']}")
+                new_time = st.time_input("Time taken",
+                                          value=cur_dt.time().replace(second=0, microsecond=0),
+                                          step=300, key=f"tl_edittime_{r['key']}")
+                new_caption = st.text_input("Caption (optional)", value=r["caption"],
+                                             key=f"tl_editcaption_{r['key']}")
+                fc1, fc2 = st.columns(2)
+                with fc1:
+                    save_clicked = st.form_submit_button("Save", type="primary", width="stretch")
+                with fc2:
+                    cancel_clicked = st.form_submit_button("Cancel", width="stretch")
+            if save_clicked:
+                new_dt = dt.datetime.combine(new_date, new_time)
+                th.update_meta(r["key"], date_str=new_dt.isoformat(), caption=new_caption)
+                st.session_state["_tl_editing_meta_key"] = None
+                st.toast("Date updated.")
+                st.rerun()
+            if cancel_clicked:
+                st.session_state["_tl_editing_meta_key"] = None
                 st.rerun()
 
 # ---------------------------------------------------------------------------
