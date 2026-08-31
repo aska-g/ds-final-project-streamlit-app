@@ -310,17 +310,27 @@ st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 
 st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
-st.caption("Line = mean compliance per date. Dots = individual photos, "
-           "positioned at the time of day each was tagged with (hover for detail).")
+st.caption("Line = mean compliance per date. Dots = individual photos, evenly spread across "
+           "each day in tagged order (hover for detail).")
 
-# Full timestamp, not just the day -- a 09:00 and a 15:00 photo on the same
-# day previously both plotted at that day's 00:00 (only the mean line's x
-# was ever a real position), stacking every same-day dot on one vertical
-# line directly under the axis's date tick even though the axis itself
-# draws hour gridlines in between -- exactly the "the dots don't match the
-# photos' timestamps" mismatch. Plotting each dot at its own r["dt"] spreads
-# same-day photos left-to-right by their actual time, matching those ticks.
-point_x = [r["dt"] for r in dated_rows]
+# Evenly spread across the day (assumes ~3 photos/day, but works for any
+# per-day count) rather than plotted at each photo's literal tagged time --
+# real capture times tend to cluster in a working-hours window (e.g.
+# 09:00/12:00/15:00), which left a big empty gap overnight between days and
+# a cramped one within. dated_rows is already in chronological order (see
+# rows.sort by full dt above), so a running per-day index is enough to slot
+# each day's photos into equal-width positions across that day, in the same
+# order their tagged times put them in.
+_day_counts, _day_seen = {}, {}
+for r in dated_rows:
+    _day_counts[r["date"]] = _day_counts.get(r["date"], 0) + 1
+point_x = []
+for r in dated_rows:
+    d = r["date"]
+    i = _day_seen.get(d, 0)
+    _day_seen[d] = i + 1
+    n = _day_counts[d]
+    point_x.append(dt.datetime.combine(d, dt.time(0, 0)) + dt.timedelta(hours=24 * (i + 0.5) / n))
 point_y = [r["compliance_pct"] for r in dated_rows]
 point_text = [
     f"{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
