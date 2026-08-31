@@ -419,9 +419,9 @@ else:
         st.caption("The loaded model hasn't detected any tracked PPE item across these photos yet -- "
                    "nothing to break down by type.")
 
-st.markdown("<hr>", unsafe_allow_html=True)
 
-with st.expander("Admin", expanded=not manifest):
+
+with st.expander("", expanded=not manifest):
     # ---------------------------------------------------------------------------
     # 2. upload + label new photos (not yet part of the saved timeline)
     # ---------------------------------------------------------------------------
