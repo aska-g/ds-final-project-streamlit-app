@@ -15,6 +15,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import detector
+import gemini_caption
 import view_helpers as vh
 import annotate_helpers as ah
 
@@ -213,6 +214,7 @@ if st.session_state.view == "results":
         for idx, (key, f) in enumerate(pending, start=1):
             raw_bytes = f.getvalue()
             img = vh.load_image(raw_bytes)
+            gemini_caption.submit(key, img)  # fires now, lands later — overlaps the YOLO pass
             raw = detector.detect_raw(model, img)
             dt = vh.exif_datetime(raw_bytes)
             cache[key] = {"name": f.name, "image": img, "raw": raw, "datetime": dt}
@@ -245,6 +247,9 @@ if not items:
     st.info("Waiting for photos to analyse. Results, the exception log and CSV export appear here once you upload a batch.")
     st.stop()
 
+for it in items:
+    gemini_caption.submit(it["key"], it["image"])
+
 threshold = st.session_state.threshold
 required = tuple(
     s for s, k in (
@@ -273,6 +278,39 @@ def go(**state):
     for k, v in state.items():
         st.session_state[k] = v
     st.rerun()
+
+
+# Gemini descriptions arrive after the page has already rendered, so poll for
+# them: whenever the in-flight count changes, rerun the whole app and the
+# captions below pick up whatever finished. Rendered only while something is
+# pending, so the polling stops by itself once the batch is described.
+@st.fragment(run_every=2)
+def caption_ticker():
+    n = gemini_caption.pending(st.session_state.batch_order)
+    if n != st.session_state.get("_cap_pending"):
+        st.session_state._cap_pending = n
+        st.rerun(scope="app")
+
+
+if gemini_caption.pending(st.session_state.batch_order):
+    caption_ticker()
+
+
+def caption_html(key, pad="7px 9px 9px", sep=True, min_height=46):
+    """The scene-description line under a photo — dim placeholder while
+    Gemini is still working, the text once it lands, nothing at all when no
+    API key is configured. The min-height keeps gallery tiles from jumping
+    as descriptions land one by one."""
+    text = gemini_caption.get(key)
+    if text is None:
+        if not gemini_caption.api_key():
+            return ""
+        body = '<span style="color:#71736D">⟳ describing…</span>'
+    else:
+        body = text
+    border = "border-top:1px solid #E4E5E2;" if sep else ""
+    return (f'<div style="padding:{pad};{border}font-size:11.5px;'
+            f'line-height:1.45;color:#4A4B47;min-height:{min_height}px">{body}</div>')
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +378,14 @@ if st.session_state.view == "results":
         )
 
     st.markdown('<div class="hv-h1" style="font-size:24px;margin-top:24px">RESULTS</div>', unsafe_allow_html=True)
+    if gemini_caption.last_error:
+        st.warning(f"Gemini returned an error, so scene descriptions are unavailable — "
+                   f"{gemini_caption.last_error}\n\nDetection and the exception log are unaffected.")
+    _key_problem = gemini_caption.key_problem()
+    if _key_problem:
+        st.caption(f"Scene descriptions are off — {_key_problem} Add "
+                   '`GEMINI_API_KEY = "..."` (quotes included — it is TOML) to have Gemini '
+                   "write a short description under each photo. Detection is unaffected either way.")
     gcol1, gcol2 = st.columns([3, 1])
     with gcol1:
         st.radio("Gallery filter", ["All photos", "Exceptions only"], key="gallery_filter",
@@ -365,6 +411,7 @@ if st.session_state.view == "results":
                     {vh.verdict_badge(a["verdict"])}
                     <span class="hv-mono" style="font-size:11px;color:#4A4B47;white-space:nowrap">{conf_label}</span>
                   </div>
+                  {caption_html(it["key"])}
                 </div>
                 """, unsafe_allow_html=True)
                 if st.button("Open →", key=f"open_{it['key']}", width="stretch"):
@@ -513,6 +560,12 @@ else:
             b64 = vh.b64_image(big, max_dim=1400, quality=90)
             st.markdown(f'<div style="background:#141414;padding:10px"><img src="data:image/jpeg;base64,{b64}" '
                          f'style="width:100%;display:block"/></div>', unsafe_allow_html=True)
+
+            desc = caption_html(it["key"], pad="4px 14px 10px", sep=False, min_height=0)
+            if desc:
+                st.markdown(f'<div style="background:#FFFFFF;border:1px solid #C4C6C0;margin-top:10px">'
+                             f'<div class="hv-mono" style="font-size:10px;letter-spacing:1.5px;color:#71736D;'
+                             f'padding:8px 14px 0">SCENE DESCRIPTION</div>{desc}</div>', unsafe_allow_html=True)
 
             if a["persons"]:
                 st.caption("Isolate:")
