@@ -286,7 +286,12 @@ else:
     selected_day_str = st.session_state.get("_tl_selected_day")
     if selected_day_str:
         selected_day = dt.date.fromisoformat(selected_day_str)
-        day_rows = [r for r in dated_rows if r["date"] == selected_day]
+        # `rows`, not `dated_rows` -- a photo with no person detected above
+        # threshold has compliance_pct=None (excluded from the mean, since
+        # there's nothing to average), but it still belongs to this day and
+        # should still show up here, badged "Not assessed" like everywhere
+        # else in the app, rather than silently vanishing from the grid.
+        day_rows = [r for r in rows if r["date"] == selected_day]
         with st.container(border=True):
             dc1, dc2 = st.columns([6, 1])
             with dc1:
