@@ -5,4 +5,5 @@ __pycache__/
 venv
 .streamlit/secrets.toml
 data/corrections/
-data/timeline/  # local demo dataset (photos + detections), same reasoning as data/corrections/ above
+# local demo dataset (photos + detections), same reasoning as data/corrections/ above
+data/timeline/

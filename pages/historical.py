@@ -17,6 +17,15 @@ the filmstrip/hover detail. What's persisted is the raw detections, not a
 baked verdict -- so the trend always reflects whatever threshold / WHAT
 COUNTS AS COMPLIANT rule is currently set on the Demo page, exactly like
 the Model Comparison page already does for its own live batch.
+
+The model won't catch every violation on its own, especially on small,
+top-down CCTV figures -- a missed NO-vest/NO-boots box just reads as
+"not visible" (not "compliant" and not "non-compliant"), which can make a
+photo look cleaner than it is. Each photo in the filmstrip below has a
+"Correct" button for exactly this: it opens the same box editor the Demo
+page's detail view already uses, writing to the same data/corrections/
+store, so a correction here counts as this photo's ground truth in both
+charts and thumbnails immediately, not just a note for a future retrain.
 """
 
 import datetime as dt
@@ -25,6 +34,7 @@ import hashlib
 import plotly.graph_objects as go
 import streamlit as st
 
+import annotate_helpers as ah
 import detector
 import timeline_helpers as th
 import view_helpers as vh
@@ -145,7 +155,19 @@ required = tuple(
 rows, invalid = [], []
 for key, meta in manifest.items():
     raw = th.load_raw(key)
-    assessment = detector.assess(raw, threshold, required=required)
+    ai_assessment = detector.assess(raw, threshold, required=required)
+    # A manual correction (see the editor below) is this photo's ground
+    # truth once one exists -- same rule the Demo page already applies to
+    # its own live batch (see pages/demo.py's own it["assessment"] logic).
+    # Corrections are keyed by filename, same store the Demo page's editor
+    # already writes to (data/corrections/), not a second one just for
+    # this page -- so correcting a photo here also benefits a future
+    # retraining run, same as correcting it there would.
+    corrected_boxes = ah.load_existing_correction(meta.get("name", ""))
+    if corrected_boxes:
+        assessment = detector.assess(ah.boxes_to_raw(corrected_boxes), 0.0, required=required)
+    else:
+        assessment = ai_assessment
     persons = assessment["persons"]
     n = len(persons)
     compliant = sum(1 for p in persons if p["verdict"] == "ok")
@@ -155,6 +177,8 @@ for key, meta in manifest.items():
         "compliance_pct": round(compliant / n * 100, 1) if n else None,
         "missing_counts": {s: sum(1 for p in persons if p["status"][s]["state"] == "missing") for s in _ALL_SLOTS},
         "verdict": assessment["verdict"],
+        "assessment": assessment, "ai_assessment": ai_assessment,
+        "corrected_boxes": corrected_boxes, "is_corrected": corrected_boxes is not None,
     }
     try:
         # stored as a full ISO date+time now ("2026-08-31T14:30:00"), but
@@ -274,7 +298,8 @@ tracked_slots = [s for s in _ALL_SLOTS if any(
 
 if tracked_slots:
     st.markdown('<div class="hv-h1" style="font-size:16px;margin:22px 0 2px">VIOLATIONS BY TYPE</div>', unsafe_allow_html=True)
-    st.caption("Stacked count of missing-PPE findings per date, by item type.")
+    st.caption("Count of missing-PPE findings per date, by item type -- one line per type, so a single "
+               "date reads as a point rather than one oddly-wide bar.")
 
     by_date_slot = {}
     for r in dated_rows:
@@ -282,24 +307,29 @@ if tracked_slots:
         for s in tracked_slots:
             acc[s] += r["missing_counts"][s]
 
+    max_count = max((by_date_slot[d][s] for d in dates_sorted for s in tracked_slots), default=0)
+    # Clean integer ticks for a small-count series (0,1,2,...) rather than
+    # Plotly's own auto-picked fractional ticks (0.2/0.4/...) for a max of 1.
+    dtick = 1 if max_count <= 12 else max(1, round(max_count / 8))
+
     fig2 = go.Figure()
     for slot in tracked_slots:  # fixed order (matches _ALL_SLOTS) -- never cycled/reordered
         neg_key = detector.SLOT_ITEMS[slot][1]
         meta = detector.CLASS_META[neg_key]
-        fig2.add_trace(go.Bar(
-            x=dates_sorted, y=[by_date_slot[d][slot] for d in dates_sorted],
-            name=meta["label"], marker=dict(color=meta["color"]),
+        y = [by_date_slot[d][slot] for d in dates_sorted]
+        fig2.add_trace(go.Scatter(
+            x=dates_sorted, y=y, mode="lines+markers", name=meta["label"],
+            line=dict(color=meta["color"], width=2), marker=dict(size=9, color=meta["color"]),
             hovertemplate=f"{meta['label']}: " + "%{y}<extra></extra>",
         ))
     fig2.update_layout(
-        barmode="stack", bargap=0.35,
         height=320, margin=dict(l=10, r=10, t=10, b=10),
         plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
         yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
-                   rangemode="tozero"),
+                   rangemode="tozero", dtick=dtick, tick0=0),
     )
     st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
 else:
@@ -314,12 +344,18 @@ else:
 st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:10px">PHOTOS</div>', unsafe_allow_html=True)
 
+by_key = {r["key"]: r for r in rows + invalid}
+
 film_cols = st.columns(4)
 for i, r in enumerate(rows + invalid):
     img = th.load_image(r["key"])
     if img is None:
         continue
-    assessment = detector.assess(r["raw"], threshold, required=required)
+    # Reuses the same correction-aware assessment the charts above were
+    # built from (computed once, in the rows loop) -- a corrected photo's
+    # thumbnail and verdict badge always match what it contributed to the
+    # trend, instead of silently showing the raw model's read again here.
+    assessment = r["assessment"]
     thumb = vh.draw_overlay(img, assessment["persons"], show_boxes=True, show_labels=False)
     with film_cols[i % 4]:
         st.markdown(f"""
@@ -329,10 +365,49 @@ for i, r in enumerate(rows + invalid):
           <div style="padding:6px 8px;display:flex;flex-direction:column;gap:4px">
             <span class="hv-mono" style="font-size:10.5px;color:#4A4B47">{_fmt_dt(r['dt']) or r['date_str'] or 'no date'}</span>
             {vh.verdict_badge(assessment["verdict"])}
+            {'<span class="hv-mono" style="font-size:10px;color:#1B7A3D">✓ MANUALLY CORRECTED</span>' if r["is_corrected"] else ''}
             {f'<span style="font-size:11px;color:#71736D">{r["caption"]}</span>' if r["caption"] else ""}
           </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("✕ Remove", key=f"tl_remove_{r['key']}"):
-            th.delete_entry(r["key"])
+        bc1, bc2 = st.columns(2)
+        with bc1:
+            if st.button("✎ Correct", key=f"tl_correct_{r['key']}", width="stretch"):
+                st.session_state["_tl_editing_key"] = r["key"]
+                st.rerun()
+        with bc2:
+            if st.button("✕ Remove", key=f"tl_remove_{r['key']}", width="stretch"):
+                th.delete_entry(r["key"])
+                st.rerun()
+
+# ---------------------------------------------------------------------------
+# 4. manual correction editor -- full page width (not squeezed into a
+# filmstrip cell), reusing the exact same box editor the Demo page's detail
+# view uses, so it looks and behaves like something already familiar rather
+# than a second, different editor. Relying on the model alone for this
+# page defeats the point of a *hand-curated* demo timeline -- this is the
+# override the rows loop above already checks for via
+# ah.load_existing_correction, on every rerun, so saving here immediately
+# updates both charts and every thumbnail, not just this one.
+# ---------------------------------------------------------------------------
+
+editing_key = st.session_state.get("_tl_editing_key")
+if editing_key is not None:
+    editing_row = by_key.get(editing_key)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    if editing_row is None:
+        st.session_state["_tl_editing_key"] = None
+    else:
+        img = th.load_image(editing_key)
+        st.markdown(
+            f'<div class="hv-h1" style="font-size:16px;margin-bottom:4px">CORRECTING: {editing_row["name"]}</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Done correcting", key="tl_done_correcting"):
+            st.session_state["_tl_editing_key"] = None
             st.rerun()
+        it = {
+            "key": f"tl_{editing_key}", "image": img, "name": editing_row["name"],
+            "corrected_boxes": editing_row["corrected_boxes"],
+        }
+        ah.render_editor(it, editing_row["ai_assessment"], threshold)
