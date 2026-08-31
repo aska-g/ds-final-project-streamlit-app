@@ -172,19 +172,16 @@ else:
 
 
 
-    # per-date mean compliance -- the line; individual photos -- the dots.
-    # Two different questions ("what's the trend" vs "what's this one photo"),
-    # never forced onto the same number.
+    # One point per date, at that date's mean compliance -- click a point to
+    # drill into that day's individual photos below (see the day-detail
+    # panel further down).
     mean_by_date = {}
     for r in rows:
         if r["compliance_pct"] is not None:
             mean_by_date.setdefault(r["date"], []).append(r["compliance_pct"])
     dates_sorted = sorted(mean_by_date)
-    # Anchored at midday, not midnight -- dots below are positioned at each
-    # photo's actual tagged time (see point_x), so the line needs to sit
-    # roughly centered among a day's dots instead of to their left at 00:00,
-    # which used to make the trend line look disconnected from what the axis's
-    # own hour ticks show.
+    # Anchored at midday rather than midnight -- one point per day, so
+    # midday just centers it visually within that day's span on the axis.
     mean_x = [dt.datetime.combine(d, dt.time(12, 0)) for d in dates_sorted]
     mean_y = [round(sum(mean_by_date[d]) / len(mean_by_date[d]), 1) for d in dates_sorted]
 
@@ -238,47 +235,25 @@ else:
     # ---------------------------------------------------------------------------
 
     st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
-    st.caption("Line = mean compliance per date. Dots = individual photos, evenly spread across "
-               "each day in tagged order -- click one to see that day's photos and analysis below.")
+    st.caption("One dot per day, at that day's mean compliance -- click a day to see its "
+               "photos and analysis below.")
 
-    # Evenly spread across the day (assumes ~3 photos/day, but works for any
-    # per-day count) rather than plotted at each photo's literal tagged time --
-    # real capture times tend to cluster in a working-hours window (e.g.
-    # 09:00/12:00/15:00), which left a big empty gap overnight between days and
-    # a cramped one within. dated_rows is already in chronological order (see
-    # rows.sort by full dt above), so a running per-day index is enough to slot
-    # each day's photos into equal-width positions across that day, in the same
-    # order their tagged times put them in.
-    _day_counts, _day_seen = {}, {}
-    for r in dated_rows:
-        _day_counts[r["date"]] = _day_counts.get(r["date"], 0) + 1
-    point_x = []
-    for r in dated_rows:
-        d = r["date"]
-        i = _day_seen.get(d, 0)
-        _day_seen[d] = i + 1
-        n = _day_counts[d]
-        point_x.append(dt.datetime.combine(d, dt.time(0, 0)) + dt.timedelta(hours=24 * (i + 0.5) / n))
-    point_y = [r["compliance_pct"] for r in dated_rows]
-    point_text = [
-        f"{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
-        + (f"<br>{r['caption']}" if r["caption"] else "")
-        for r in dated_rows
+    day_photo_count = {d: len(mean_by_date[d]) for d in dates_sorted}
+    day_text = [
+        f"{d.isoformat()}<br>{mean_y[i]}% compliant (mean of {day_photo_count[d]} photo"
+        + ("s" if day_photo_count[d] != 1 else "") + ")"
+        for i, d in enumerate(dates_sorted)
     ]
 
     fig1 = go.Figure()
     fig1.add_trace(go.Scatter(
-        x=mean_x, y=mean_y, mode="lines", line=dict(color="#14213D", width=2),
-        hoverinfo="skip", showlegend=False,
-    ))
-    fig1.add_trace(go.Scatter(
-        x=point_x, y=point_y, mode="markers",
+        x=mean_x, y=mean_y, mode="lines+markers",
+        line=dict(color="#14213D", width=2),
         marker=dict(size=10, color="#14213D", line=dict(color="#FFFFFF", width=2)),
-        text=point_text, hovertemplate="%{text}<extra></extra>", showlegend=False,
-        # One day per point, wrapped in its own list per Plotly's customdata
-        # convention -- read back on click below to know which day to open,
-        # without having to reverse-engineer it from point_index/curve_number.
-        customdata=[[r["date"].isoformat()] for r in dated_rows],
+        text=day_text, hovertemplate="%{text}<extra></extra>", showlegend=False,
+        # One point per day, so a click's customdata is that day's isoformat --
+        # read back below to know which day's detail panel to open.
+        customdata=[[d.isoformat()] for d in dates_sorted],
     ))
     fig1.update_layout(
         height=340, margin=dict(l=10, r=10, t=10, b=10),
