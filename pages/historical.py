@@ -426,11 +426,15 @@ else:
                 hovertemplate=f"{label}: " + "%{y}<extra></extra>",
             ))
         fig2.update_layout(
-            height=320, margin=dict(l=10, r=10, t=10, b=10),
+            # Legend sits ABOVE the plot area, anchored to its own top (not
+            # the plot's) -- that + a real top margin is what puts visible
+            # air between the legend row and the white plot box below it,
+            # instead of the legend nearly overlapping it.
+            height=320, margin=dict(l=10, r=10, t=60, b=10),
             barmode="group", bargap=0.25, bargroupgap=0.06,
             plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
             font=dict(family="IBM Plex Sans, sans-serif", color="#141414", size=12.5),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            legend=dict(orientation="h", yanchor="top", y=1.21, xanchor="left", x=0),
             xaxis=dict(showgrid=False, linecolor="#C4C6C0", tickfont=dict(color="#4A4B47")),
             yaxis=dict(gridcolor="#E4E5E2", gridwidth=1, zeroline=False, tickfont=dict(color="#4A4B47"),
                        rangemode="tozero", dtick=dtick, tick0=0),
