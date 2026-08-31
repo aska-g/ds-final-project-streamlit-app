@@ -256,6 +256,20 @@ html, body, [class*="css"] { font-family:'IBM Plex Sans',sans-serif; }
    settings-gear icon (passed via st.expander(icon=...)) is the affordance
    now, so the boxed outline around it is just extra chrome. */
 [data-testid="stExpander"] > details { border:none !important; background:transparent !important; }
+/* Streamlit swaps the custom icon (icon=":material/settings:") for its own
+   chevron on hover, regardless of the icon param -- the DOM element's own
+   testid literally changes from stExpanderIcon to stIconMaterial when the
+   mouse is over the summary bar. Pin the gear glyph in that slot instead
+   of fighting the swap: hide whichever native icon is currently rendered
+   and draw a fixed gear via ::before, so it never flips to a chevron. */
+[data-testid="stExpander"] summary [data-testid="stExpanderIcon"],
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
+    display:none !important;
+}
+[data-testid="stExpander"] summary > span > span:first-child::before {
+    content:"⚙" !important; font-family:initial !important; font-size:16px !important;
+    color:#141414 !important; line-height:1 !important; display:inline-block !important;
+}
 [data-testid="stAlert"] { background:#FFFFFF !important; border:1px solid #C4C6C0 !important; border-radius:0 !important; }
 [data-testid="stAlertContainer"] { background:#FFFFFF !important; color:#141414 !important; }
 [data-testid="stAlertContentInfo"] { color:#141414 !important; }
