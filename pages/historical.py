@@ -260,7 +260,12 @@ for r in rows:
     if r["compliance_pct"] is not None:
         mean_by_date.setdefault(r["date"], []).append(r["compliance_pct"])
 dates_sorted = sorted(mean_by_date)
-mean_x = dates_sorted
+# Anchored at midday, not midnight -- dots below are positioned at each
+# photo's actual tagged time (see point_x), so the line needs to sit
+# roughly centered among a day's dots instead of to their left at 00:00,
+# which used to make the trend line look disconnected from what the axis's
+# own hour ticks show.
+mean_x = [dt.datetime.combine(d, dt.time(12, 0)) for d in dates_sorted]
 mean_y = [round(sum(mean_by_date[d]) / len(mean_by_date[d]), 1) for d in dates_sorted]
 
 # ---------------------------------------------------------------------------
@@ -305,9 +310,17 @@ st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 
 st.markdown('<div class="hv-h1" style="font-size:16px;margin-bottom:2px">COMPLIANCE OVER TIME</div>', unsafe_allow_html=True)
-st.caption("Line = mean compliance per date. Dots = individual photos (hover for detail).")
+st.caption("Line = mean compliance per date. Dots = individual photos, "
+           "positioned at the time of day each was tagged with (hover for detail).")
 
-point_x = [r["date"] for r in dated_rows]
+# Full timestamp, not just the day -- a 09:00 and a 15:00 photo on the same
+# day previously both plotted at that day's 00:00 (only the mean line's x
+# was ever a real position), stacking every same-day dot on one vertical
+# line directly under the axis's date tick even though the axis itself
+# draws hour gridlines in between -- exactly the "the dots don't match the
+# photos' timestamps" mismatch. Plotting each dot at its own r["dt"] spreads
+# same-day photos left-to-right by their actual time, matching those ticks.
+point_x = [r["dt"] for r in dated_rows]
 point_y = [r["compliance_pct"] for r in dated_rows]
 point_text = [
     f"{_fmt_dt(r['dt'])}<br>{r['compliance_pct']}% compliant ({r['n_persons']} assessed)"
