@@ -289,6 +289,16 @@ html, body, [class*="css"] { font-family:'IBM Plex Sans',sans-serif; }
 [data-testid="stAlertContentInfo"] { color:#141414 !important; }
 [data-testid="stCaptionContainer"] { color:#4A4B47 !important; }
 hr { border-color:#C4C6C0; }
+/* Chart cards (COMPLIANCE OVER TIME / VIOLATIONS BY TYPE) -- want the
+   white background + padding a bordered container gives, but Joanna does
+   not want the border/rounded-corner card look, and st.container's own
+   testid is shared by every bordered container in the app (including the
+   legit day-detail-panel one), so target these two by their key= instead
+   of the shared testid. */
+.st-key-tl_chart1_card, .st-key-tl_chart2_card {
+    background:#FFFFFF !important; border:none !important; border-radius:0 !important;
+}
+
 </style>
 """
 
