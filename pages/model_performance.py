@@ -163,6 +163,98 @@ for key, info in RUN_INFO.items():
 # added to Model Comparison, so it's not part of "the 9 models" this table is answering for.
 compare_rows = [(key, info, path) for key, info, path in runs_to_show if info.get("compare_label")]
 
+# ── Vision LLM PPE screening (zero-shot) data — loaded here, ahead of the comparison
+# tables below, so its headline Precision/Recall and per-class numbers can be merged
+# straight into them. The fuller breakdown (including YOLO26s as the reference row) lives
+# in its own collapsed entry down in "Per-model training details". Same story as RUN_INFO
+# above — nothing under runs/llm is auto-discovered. These two runs share the exact same
+# 100 merged-dataset images (seed 42), so their presence.csv files stack into one
+# comparison. Add the newest matching pair when a fresh run lands; order = display order.
+LLM_RUNS = [
+    "20260828_035813_merged_n100_seed42_yolo-ollama-qwen3-vl-gemma4-minicpm-v",
+    "20260831_merged_n100_seed42_yolo-gemini",
+]
+# Ground truth: per-image presence booleans derived from the merged dataset's own YOLO
+# label .txt files (class id in the file => that class is present). The dataset itself
+# lives outside this repo, so those 900 rows are frozen into this CSV once — regenerate it
+# if LLM_RUNS changes to a different image set.
+GT_CSV = RUNS_DIR / "llm" / "_merged_n100_seed42_ground_truth.csv"
+# model id in presence.csv -> (display label, where it runs). "ollama" = llava:7b. "yolo"
+# here is yolo26s_merged_100e — the exact same weights as the "merged" row in the
+# comparison tables above, run through this same 100-image presence screen for reference —
+# excluded from the tables above so the same model isn't double-counted under two
+# different evaluation methodologies (full-dataset box-level metrics vs a 100-image
+# presence/absence screen).
+LLM_MODELS = {
+    "yolo": ("YOLO26s (our detector)", "local"),
+    "gemini": ("Gemini 3.6 Flash", "API"),
+    "qwen3-vl": ("qwen3-vl:4b", "local"),
+    "gemma4": ("gemma4:e4b", "local"),
+    "minicpm-v": ("minicpm-v:8b", "local"),
+    "ollama": ("llava:7b", "local"),
+}
+CLASS_ORDER = ["person", "helmet", "gloves", "boots", "vest",
+               "no-helmet", "no-gloves", "no-boots", "no-vest"]
+# Maps our own PER_CLASS "Slot" rows onto this screen's class names — mask isn't tracked
+# here at all (the merged dataset has no mask class), so those two slots get no LLM value.
+SLOT_TO_LLM_CLASS = {
+    "Person": "person",
+    "Head protection — present": "helmet",
+    "Head protection — absent": "no-helmet",
+    "Vest — present": "vest",
+    "Vest — absent": "no-vest",
+    "Gloves — present": "gloves",
+    "Gloves — absent": "no-gloves",
+    "Boots — present": "boots",
+    "Boots — absent": "no-boots",
+}
+
+llm_frames = []
+for _name in LLM_RUNS:
+    _p = RUNS_DIR / "llm" / _name / "presence.csv"
+    if _p.exists():
+        llm_frames.append(pd.read_csv(_p))
+
+llm_all = llm_cells = llm_truth = None
+llm_summary = {}
+llm_per_class = {}
+if llm_frames and GT_CSV.exists():
+    llm_all = pd.concat(llm_frames, ignore_index=True)
+    llm_all["present"] = llm_all["present"].astype(str).str.lower().eq("true")
+    llm_all["parse_error"] = llm_all["parse_error"].astype(str).str.lower().eq("true")
+    llm_all = llm_all.drop_duplicates(["file", "model", "class_name"])  # yolo is in both runs
+    # .pivot (not pivot_table) so the bool dtype survives — (file, class, model) is unique
+    # after the drop_duplicates above, no aggregation needed.
+    llm_cells = llm_all.pivot(index=["file", "class_name"], columns="model", values="present").fillna(False)
+
+    _gt = pd.read_csv(GT_CSV)
+    _gt["present"] = _gt["present"].astype(str).str.lower().eq("true")
+    llm_truth = _gt.set_index(["file", "class_name"])["present"].reindex(llm_cells.index).fillna(False)
+
+    for mid, (label, where) in LLM_MODELS.items():
+        if mid not in llm_cells:
+            continue
+        pred = llm_cells[mid]
+        tp = (pred & llm_truth).sum()
+        recall = tp / llm_truth.sum() if llm_truth.sum() else float("nan")
+        precision = tp / pred.sum() if pred.sum() else float("nan")
+        llm_summary[mid] = {
+            "label": label,
+            "where": where,
+            "Accuracy": (pred == llm_truth).mean(),
+            "Recall": recall,
+            "Precision": precision,
+            "F1": 2 * precision * recall / (precision + recall) if (precision + recall) else float("nan"),
+            "Parse failures": int(llm_all.loc[llm_all["model"] == mid, "parse_error"].sum()),
+        }
+        per_cls = {}
+        for cls in CLASS_ORDER:
+            sl_pred = llm_cells.xs(cls, level="class_name")[mid]
+            sl_truth = llm_truth.xs(cls, level="class_name")
+            pos = sl_truth.sum()
+            per_cls[cls] = (sl_pred & sl_truth).sum() / pos if pos else float("nan")
+        llm_per_class[mid] = per_cls
+
 # Comparison overview first — this is what a visitor to this page wants to see before
 # anything else. The baseline classifier and the noisy per-model training details (moved
 # into collapsed expanders below) both come after it.
@@ -170,7 +262,8 @@ if compare_rows:
     st.caption(
         """
         mAP50 = average precision at a loose 0.5 IoU overlap threshold (is the box roughly in the right place)\n
-        mAP50-95 = average across stricter thresholds from 0.5 to 0.95 (more demanding number)
+        mAP50-95 = average across stricter thresholds from 0.5 to 0.95 (more demanding number)\n
+        Rows below without an Epochs/mAP number are zero-shot vision LLMs, not trained detectors — see "Vision LLMs — PPE screening" further down for the full picture and how their Precision/Recall was measured.
         """
     )
     table_rows = []
@@ -190,6 +283,18 @@ if compare_rows:
             "Recall": round(float(last[recall_col]), 3) if recall_col else None,
             "mAP50": round(float(last[map50_col]), 3) if map50_col else None,
             "mAP50-95": round(float(last[map50_95_col]), 3) if map50_95_col else None
+        })
+    for mid, m in llm_summary.items():
+        if mid == "yolo":
+            continue  # same weights as the "merged" row above — see LLM_MODELS comment
+        table_rows.append({
+            "Model": mid,
+            "Run": f"{m['label']} — zero-shot vision LLM, {m['where']}",
+            "Epochs": "—",
+            "Precision": round(float(m["Precision"]), 3),
+            "Recall": round(float(m["Recall"]), 3),
+            "mAP50": "—",
+            "mAP50-95": "—",
         })
     st.dataframe(pd.DataFrame(table_rows), hide_index=True, width="stretch")
 
@@ -221,7 +326,18 @@ if compare_rows:
         {"Slot": "Boots — present",            "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.90", "merged-m": "0.91", "merged-m-v2": "0.92", "mergedpeople": "0.91", "Altec": "0.73"},
         {"Slot": "Boots — absent",             "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.86", "merged-m": "0.89", "merged-m-v2": "0.88", "mergedpeople": "0.89", "Altec": "—"},
     ]
-    st.dataframe(pd.DataFrame(PER_CLASS), hide_index=True, width="stretch", height="content")
+    per_class_df = pd.DataFrame(PER_CLASS)
+    for mid, per_cls in llm_per_class.items():
+        if mid == "yolo":
+            continue  # same weights as the "merged" column above — see LLM_MODELS comment
+        per_class_df[mid] = per_class_df["Slot"].map(
+            lambda slot, per_cls=per_cls: (
+                f"{per_cls[SLOT_TO_LLM_CLASS[slot]]:.2f}"
+                if slot in SLOT_TO_LLM_CLASS and pd.notna(per_cls[SLOT_TO_LLM_CLASS[slot]])
+                else "—"
+            )
+        )
+    st.dataframe(per_class_df, hide_index=True, width="stretch", height="content")
     st.caption(
         "Numbers are each class's diagonal in its confusion matrix — of every box that was "
         "truly that class, the fraction the model predicted correctly (≈ recall). Blank cells "
@@ -230,7 +346,11 @@ if compare_rows:
         "the same slot — e.g. Helmet and a lowercase duplicate \"helmet\" class, or Face_masks "
         "and Face_shield — see the confusion matrices below for the exact class names and full "
         "picture, including classes not in this table (Safety Cone/machinery/vehicle for "
-        "v8/v26/css-m-150/css-m-300, Glasses for Altec)."
+        "v8/v26/css-m-150/css-m-300, Glasses for Altec). The LLM columns (gemini, qwen3-vl, "
+        "gemma4, minicpm-v, ollama) score something different — image-level presence/absence "
+        "over a 100-image sample, not per-box confusion-matrix recall over the full dataset — "
+        "so read them as directionally comparable, not on the exact same scale; \"—\" there "
+        "means mask, which this screen never asked about."
     )
 
 
@@ -346,115 +466,57 @@ else:
                     st.image(str(run_dir / name), caption=caption, width="stretch")
 
 
+if llm_summary:
+    with st.expander("Vision LLMs — PPE screening (zero-shot, vs YOLO26s)"):
+        st.caption(
+            "Each model was asked, per image, whether at least one instance of each class is "
+            "visible (9 classes, 100 merged-dataset images, seed 42) — a yes/no presence call, "
+            "no bounding boxes. Scored against the merged dataset's own labels as ground "
+            "truth. YOLO26s here is yolo26s_merged_100e (the same weights as the \"merged\" "
+            "row/column in the comparison tables above) run through this same 100-image "
+            "presence screen for an apples-to-apples reference — its Precision/Recall up "
+            "there come from full-dataset box-level training metrics instead, so don't "
+            "compare it against the LLM rows there directly. The LLMs are zero-shot."
+        )
+        # matplotlib (for the red-green cell shading) ships with ultralytics, already a
+        # pinned dependency — no requirements.txt change needed.
+        METRICS = ["Accuracy", "Recall", "Precision", "F1"]
+        summary = [
+            {
+                "Model": m["label"],
+                "Runs": m["where"],
+                "Accuracy": m["Accuracy"],
+                "Recall": m["Recall"],
+                "Precision": m["Precision"],
+                "F1": m["F1"],
+                "Parse failures": m["Parse failures"],
+            }
+            for m in llm_summary.values()
+        ]
+        summary_df = pd.DataFrame(summary).set_index("Model")
+        st.dataframe(
+            summary_df.style
+            .background_gradient(cmap="RdYlGn", vmin=0, vmax=1, subset=METRICS)
+            .format({m: "{:.1%}" for m in METRICS}),
+            width="stretch",
+        )
+        st.caption(
+            "Recall is the one that matters for a safety screen — missing PPE that's really "
+            "there is the costly error. YOLO26s clears ~94% recall at ~97% precision; the "
+            "LLMs trade high-ish recall for weak precision (they over-call PPE present, "
+            "worst on the 'no-helmet' / 'no-vest' negative classes)."
+        )
 
-# ── PPE screening: our YOLO vs vision LLMs (local + hosted API) ──────────────
-# Same story as RUN_INFO above — nothing under runs/llm is auto-discovered.
-# These two runs share the exact same 100 merged-dataset images (seed 42), so
-# their presence.csv files stack into one comparison. "model" col in each file:
-# yolo + the LLMs listed here. Add the newest matching pair when a fresh run
-# lands; order = display order in the table.
-LLM_RUNS = [
-    "20260828_035813_merged_n100_seed42_yolo-ollama-qwen3-vl-gemma4-minicpm-v",
-    "20260831_merged_n100_seed42_yolo-gemini",
-]
-# Ground truth: per-image presence booleans derived from the merged dataset's
-# own YOLO label .txt files (class id in the file => that class is present).
-# The dataset itself lives outside this repo, so those 900 rows are frozen into
-# this CSV once — regenerate it if LLM_RUNS changes to a different image set.
-GT_CSV = RUNS_DIR / "llm" / "_merged_n100_seed42_ground_truth.csv"
-# model id in presence.csv -> (display label, where it runs). "ollama" = llava:7b.
-LLM_MODELS = {
-    "yolo": ("YOLO26s (our detector)", "local"),
-    "gemini": ("Gemini 3.6 Flash", "API"),
-    "qwen3-vl": ("qwen3-vl:4b", "local"),
-    "gemma4": ("gemma4:e4b", "local"),
-    "minicpm-v": ("minicpm-v:8b", "local"),
-    "ollama": ("llava:7b", "local"),
-}
-
-llm_frames = []
-for name in LLM_RUNS:
-    p = RUNS_DIR / "llm" / name / "presence.csv"
-    if p.exists():
-        llm_frames.append(pd.read_csv(p))
-
-CLASS_ORDER = ["person", "helmet", "gloves", "boots", "vest",
-               "no-helmet", "no-gloves", "no-boots", "no-vest"]
-
-if llm_frames and GT_CSV.exists():
-    st.header("PPE screening — our YOLO vs vision LLMs")
-    st.caption(
-        "Each model was asked, per image, whether at least one instance of each class is "
-        "visible (9 classes, 100 merged-dataset images, seed 42) — a yes/no presence call, no "
-        "bounding boxes. Scored against the merged dataset's own labels as ground truth. "
-        "YOLO26s was trained on this dataset, so it sets the bar; the LLMs are zero-shot."
-    )
-    llm = pd.concat(llm_frames, ignore_index=True)
-    llm["present"] = llm["present"].astype(str).str.lower().eq("true")
-    llm["parse_error"] = llm["parse_error"].astype(str).str.lower().eq("true")
-    llm = llm.drop_duplicates(["file", "model", "class_name"])  # yolo is in both runs
-    # .pivot (not pivot_table) so the bool dtype survives — (file, class, model)
-    # is unique after the drop_duplicates above, no aggregation needed.
-    cells = llm.pivot(index=["file", "class_name"], columns="model", values="present").fillna(False)
-
-    gt = pd.read_csv(GT_CSV)
-    gt["present"] = gt["present"].astype(str).str.lower().eq("true")
-    truth = gt.set_index(["file", "class_name"])["present"].reindex(cells.index).fillna(False)
-
-    # matplotlib (for the red-green cell shading) ships with ultralytics, already
-    # a pinned dependency — no requirements.txt change needed.
-    METRICS = ["Accuracy", "Recall", "Precision", "F1"]
-    summary = []
-    for mid, (label, where) in LLM_MODELS.items():
-        if mid not in cells:
-            continue
-        pred = cells[mid]
-        tp = (pred & truth).sum()
-        recall = tp / truth.sum() if truth.sum() else float("nan")
-        precision = tp / pred.sum() if pred.sum() else float("nan")
-        summary.append({
-            "Model": label,
-            "Runs": where,
-            "Accuracy": (pred == truth).mean(),
-            "Recall": recall,
-            "Precision": precision,
-            "F1": 2 * precision * recall / (precision + recall),
-            "Parse failures": int(llm.loc[llm["model"] == mid, "parse_error"].sum()),
-        })
-    summary_df = pd.DataFrame(summary).set_index("Model")
-    st.dataframe(
-        summary_df.style
-        .background_gradient(cmap="RdYlGn", vmin=0, vmax=1, subset=METRICS)
-        .format({m: "{:.1%}" for m in METRICS}),
-        width="stretch",
-    )
-    st.caption(
-        "Recall is the one that matters for a safety screen — missing PPE that's really there "
-        "is the costly error. YOLO26s clears ~94% recall at ~97% precision; the LLMs trade "
-        "high-ish recall for weak precision (they over-call PPE present, worst on the "
-        "'no-helmet' / 'no-vest' negative classes)."
-    )
-
-    st.subheader("Recall by class")
-    per_class = {}
-    for mid, (label, _) in LLM_MODELS.items():
-        if mid not in cells:
-            continue
-        col = {}
-        for cls in CLASS_ORDER:
-            sl_pred = cells.xs(cls, level="class_name")[mid]
-            sl_truth = truth.xs(cls, level="class_name")
-            pos = sl_truth.sum()
-            col[cls] = (sl_pred & sl_truth).sum() / pos if pos else float("nan")
-        per_class[label] = col
-    per_class_df = pd.DataFrame(per_class).reindex(CLASS_ORDER)
-    st.dataframe(
-        per_class_df.style
-        .background_gradient(cmap="RdYlGn", vmin=0, vmax=1, axis=None)
-        .format("{:.0%}", na_rep="—"),
-        width="stretch",
-    )
-    st.caption(
-        "Fraction of each class's ground-truth-present images the model also flagged. \"—\" = "
-        "that class never appears in the 100-image sample."
-    )
+        st.subheader("Recall by class")
+        per_class_llm = {m["label"]: llm_per_class[mid] for mid, m in llm_summary.items()}
+        per_class_llm_df = pd.DataFrame(per_class_llm).reindex(CLASS_ORDER)
+        st.dataframe(
+            per_class_llm_df.style
+            .background_gradient(cmap="RdYlGn", vmin=0, vmax=1, axis=None)
+            .format("{:.0%}", na_rep="—"),
+            width="stretch",
+        )
+        st.caption(
+            "Fraction of each class's ground-truth-present images the model also flagged. "
+            "\"—\" = that class never appears in the 100-image sample."
+        )
