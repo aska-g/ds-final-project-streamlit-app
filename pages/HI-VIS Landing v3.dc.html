@@ -33,7 +33,7 @@ a{color:inherit}
   </div>
 
   <div style="position:absolute;right:22px;top:50%;transform:translateY(-50%);z-index:40;display:flex;flex-direction:column;gap:9px">
-    <sc-for list="{{dots}}" as="d" hint-placeholder-count="10">
+    <sc-for list="{{dots}}" as="d" hint-placeholder-count="11">
       <button onClick="{{d.go}}" aria-label="{{d.label}}" title="{{d.label}}" style="width:11px;height:11px;padding:0;border:1px solid {{d.bd}};background:{{d.bg}};cursor:pointer;display:block"></button>
     </sc-for>
   </div>
@@ -43,7 +43,7 @@ a{color:inherit}
     <button onClick="{{goNext}}" aria-label="Next" style="width:42px;height:42px;background:#EFE600;border:1px solid #EFE600;color:#141414;cursor:pointer;font-size:16px;font-weight:700" style-hover="background:transparent;color:#EFE600">↓</button>
   </div>
 
-  <div style="height:1000vh;transform:{{trackY}};transition:transform 0.85s cubic-bezier(0.65,0,0.35,1)">
+  <div style="height:1100vh;transform:{{trackY}};transition:transform 0.85s cubic-bezier(0.65,0,0.35,1)">
 
     <section data-screen-label="01 Title" style="height:100vh;background:#141414;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center">
       <div style="position:absolute;inset:0;opacity:0.5">
@@ -97,8 +97,31 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="03 The product" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o2}};transform:{{t2}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r2}}">
+    <section data-screen-label="03 The response" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1150px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(20px,4vh,40px);opacity:{{o2}};transform:{{t2}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r2}}">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600;margin-bottom:14px">02 — WHY WE'RE BUILDING THIS</div>
+          <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(40px,5.4vw,76px);line-height:0.98;margin:0;text-wrap:balance">TWO PROBLEMS, ONE MODEL.</h2>
+        </div>
+        <div style="border-left:3px solid #EFE600;padding-left:18px;font-size:16px;color:#C9CBC4;max-width:760px">The numbers on the last slide are a policy failure, not a run of bad luck. On the ground it splits into two separate gaps — and one model closes both.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+          <div style="border:1px solid #3A3B38;padding:26px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">SAFETY</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(24px,2.2vw,32px);line-height:1.05">COVERAGE IS THIN AND INCONSISTENT.</div>
+            <p style="margin:0;font-size:14.5px;color:#C9CBC4">PPE checks on site are a spot inspection by one person, walking round once a day. Everything that happens between rounds goes unchecked.</p>
+          </div>
+          <div style="border:1px solid #3A3B38;padding:26px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">EVIDENCE</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(24px,2.2vw,32px);line-height:1.05">THE RECORDS ALREADY EXIST. THEY'RE JUST NOT RECORDS.</div>
+            <p style="margin:0;font-size:14.5px;color:#C9CBC4">Poor contemporaneous records are the most common weakness in construction claims. Photos exist by the thousand — none of them indexed, tagged, or searchable.</p>
+          </div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#71736D">SAME PHOTOS, READ AUTOMATICALLY. HERE'S WHAT THAT LOOKS LIKE →</div>
+      </div>
+    </section>
+
+    <section data-screen-label="04 The product" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o3}};transform:{{t3}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r3}}">
         <div style="display:flex;flex-direction:column;gap:24px">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#71736D">02 — WHAT IT DOES</div>
           <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(46px,5vw,74px);line-height:0.96;margin:0">DROP IN A FOLDER.<br>GET BACK WHO IS MISSING WHAT.</h2>
@@ -144,8 +167,8 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="04 Progression" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(14px,3vh,34px);opacity:{{o3}};transform:{{t3}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r3}}">
+    <section data-screen-label="05 Progression" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(14px,3vh,34px);opacity:{{o4}};transform:{{t4}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r4}}">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div>
             <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#71736D;margin-bottom:10px">03 — FOUR DAYS OF MODELS</div>
@@ -170,16 +193,16 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="05 The audit quote" style="height:100vh;background:#EFE600;color:#141414;display:flex;align-items:center;justify-content:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1100px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,30px);opacity:{{o4}};transform:{{t4}};transition:opacity 0.8s ease 0.1s,transform 0.8s ease 0.1s" ref="{{r4}}">
+    <section data-screen-label="06 The audit quote" style="height:100vh;background:#EFE600;color:#141414;display:flex;align-items:center;justify-content:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1100px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,30px);opacity:{{o5}};transform:{{t5}};transition:opacity 0.8s ease 0.1s,transform 0.8s ease 0.1s" ref="{{r5}}">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px">04 — THEN WE AUDITED OUR OWN DATA</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(40px,6.8vw,104px);line-height:1.06;text-wrap:balance">FOUR DAYS IMPROVING THE MODEL. ONE AFTERNOON AUDITING THE DATA. <span style="background:#141414;color:#EFE600;padding:0 18px">THE AFTERNOON TAUGHT US MORE.</span></div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.5px;max-width:640px">One pass over every label file. A perceptual-hash sweep of 13,284 images. 92,239 boxes. Seconds to run — and it invalidated most of what we thought we knew.</div>
       </div>
     </section>
 
-    <section data-screen-label="06 Finding 1" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o5}};transform:{{t5}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r5}}">
+    <section data-screen-label="07 Finding 1" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o6}};transform:{{t6}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r6}}">
         <div style="display:flex;flex-direction:column;gap:20px">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">FINDING 1 OF 5 — CRITICAL</div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(60px,11vw,170px);line-height:0.9;color:#EFE600;font-variant-numeric:tabular-nums">{{f1}}%</div>
@@ -207,8 +230,8 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="07 Finding 2" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o6}};transform:{{t6}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r6}}">
+    <section data-screen-label="08 Finding 2" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o7}};transform:{{t7}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r7}}">
         <div style="display:flex;flex-direction:column;gap:20px">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">FINDING 2 OF 5 — CRITICAL</div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(60px,11vw,170px);line-height:0.9;color:#EFE600;font-variant-numeric:tabular-nums">{{f2}}%</div>
@@ -235,8 +258,8 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="08 Findings 3 to 5" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o7}};transform:{{t7}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r7}}">
+    <section data-screen-label="09 Findings 3 to 5" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o8}};transform:{{t8}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r8}}">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">FINDINGS 3 · 4 · 5</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch">
           <div style="border:1px solid #3A3B38;padding:26px;display:flex;flex-direction:column;gap:12px">
@@ -265,8 +288,8 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="09 The call" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o8}};transform:{{t8}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r8}}">
+    <section data-screen-label="10 The call" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o9}};transform:{{t9}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r9}}">
         <div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#71736D;margin-bottom:10px">05 — THE CALL</div>
           <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(34px,5.5vw,80px);line-height:0.95;margin:0">WE SHIPPED THE MODEL WITH THE LOWER SCORE.</h2>
@@ -288,8 +311,8 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="10 Next and team" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(14px,3vh,34px);opacity:{{o9}};transform:{{t9}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r9}}">
+    <section data-screen-label="11 Next and team" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(14px,3vh,34px);opacity:{{o10}};transform:{{t10}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r10}}">
         <div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600;margin-bottom:10px">06 — WHAT WE'D DO NEXT</div>
           <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(34px,5.5vw,80px);line-height:0.95;margin:0;text-wrap:balance">THEN RE-MEASURE, AND FIND OUT WHAT WE ACTUALLY BUILT.</h2>
@@ -315,13 +338,13 @@ a{color:inherit}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;wheelNav&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Navigation&quot;}, &quot;startPanel&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 0, &quot;min&quot;: 0, &quot;max&quot;: 9, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Navigation&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;wheelNav&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Navigation&quot;}, &quot;startPanel&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 0, &quot;min&quot;: 0, &quot;max&quot;: 10, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Navigation&quot;}}">
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    const NAMES = ['TITLE', 'THE PROBLEM', 'THE PRODUCT', 'THE PROGRESSION', 'THE AUDIT', 'FINDING 1 — CONTAMINATION', 'FINDING 2 — BLIND SPOTS', 'FINDINGS 3·4·5', 'THE CALL', 'WHAT NEXT + TEAM'];
+    const NAMES = ['TITLE', 'THE PROBLEM', 'THE RESPONSE', 'THE PRODUCT', 'THE PROGRESSION', 'THE AUDIT', 'FINDING 1 — CONTAMINATION', 'FINDING 2 — BLIND SPOTS', 'FINDINGS 3·4·5', 'THE CALL', 'WHAT NEXT + TEAM'];
     this.names = NAMES;
-    this.N = 10;
+    this.N = 11;
     let start = parseInt(props.startPanel, 10);
     if (isNaN(start)) { const saved = parseInt(localStorage.getItem('hivis-v3-panel'), 10); start = isNaN(saved) ? 0 : saved; }
     start = Math.max(0, Math.min(this.N - 1, start));
@@ -404,7 +427,7 @@ class Component extends DCLogic {
   }
   renderVals() {
     const s = this.state, i = s.idx, p = s.p;
-    const lightPanels = [2, 3, 4, 8];
+    const lightPanels = [3, 4, 5, 9];
     const onLight = lightPanels.indexOf(i) >= 0;
     const vals = {
       trackY: 'translateY(-' + i * 100 + 'vh)',
