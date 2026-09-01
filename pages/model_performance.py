@@ -12,39 +12,13 @@ STATS_PATH = _APP_DIR / "models" / "baseline_stats.json"
 HISTORY_PATH = _APP_DIR / "models" / "baseline_history.json"
 RUNS_DIR = _REPO_ROOT / "runs"
 
-st.title("Model performance")
-
-st.header("Baseline classifier")
-if STATS_PATH.exists():
-    with open(STATS_PATH) as f:
-        stats = json.load(f)
-    col1, col2, col3 = st.columns(3)
-    col1.metric("This model (val accuracy)", f"{stats['val_accuracy']:.0%}")
-    col2.metric(f"Majority-class baseline ({stats['majority_class']})", f"{stats['majority_baseline_accuracy']:.0%}")
-    col3.metric("Random-guess baseline", f"{stats['random_guess_accuracy']:.0%}")
-else:
-    st.info("No trained baseline model yet — run train_baseline_classifier.py first.")
-
-if HISTORY_PATH.exists():
-    with open(HISTORY_PATH) as f:
-        history = json.load(f)
-    st.subheader("Training curves — is this model overfitting?")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.caption("Loss per epoch")
-        st.line_chart(pd.DataFrame({"train": history["loss"], "val": history["val_loss"]}))
-    with col2:
-        st.caption("Accuracy per epoch")
-        st.line_chart(pd.DataFrame({"train": history["accuracy"], "val": history["val_accuracy"]}))
-    st.caption(
-        "Training loss/accuracy keep improving while validation plateaus early — a classic "
-        "overfitting signature. The model is overconfident on out-of-distribution input."
-    )
 
 def _find_col(df, *keywords):
     """First column whose name contains all keywords, e.g. _find_col(df, 'train', 'box_loss')."""
     return next((c for c in df.columns if all(k in c for k in keywords)), None)
 
+
+st.title("Model performance comparison")
 
 # The ONLY runs that show up on this page — nothing under runs/ is auto-discovered anymore.
 # This is deliberate: the repo's runs/ folder can pick up stray training runs from teammates
@@ -135,7 +109,6 @@ RUN_INFO = {
     },
 }
 
-st.header("YOLO training runs")
 runs_to_show = []
 for key, info in RUN_INFO.items():
     results_path = RUNS_DIR / info["path"] / "results.csv"
@@ -146,8 +119,11 @@ for key, info in RUN_INFO.items():
 # yolov8n_scratch is deliberately excluded: it's shown lower on this page, but was never
 # added to Model Comparison, so it's not part of "the 4 models" this table is answering for.
 compare_rows = [(key, info, path) for key, info, path in runs_to_show if info.get("compare_label")]
+
+# Comparison overview first — this is what a visitor to this page wants to see before
+# anything else. The baseline classifier and the noisy per-model training details (moved
+# into collapsed expanders below) both come after it.
 if compare_rows:
-    st.subheader("The 6 models on Model Comparison, side by side")
     st.caption(
         """
         mAP50 = average precision at a loose 0.5 IoU overlap threshold (is the box roughly in the right place)\n
@@ -170,8 +146,7 @@ if compare_rows:
             "Precision": round(float(last[precision_col]), 3) if precision_col else None,
             "Recall": round(float(last[recall_col]), 3) if recall_col else None,
             "mAP50": round(float(last[map50_col]), 3) if map50_col else None,
-            "mAP50-95": round(float(last[map50_95_col]), 3) if map50_95_col else None,
-            "Live on Model Comparison": "Yes" if info.get("live_on_compare") else "No",
+            "mAP50-95": round(float(last[map50_95_col]), 3) if map50_95_col else None
         })
     st.dataframe(pd.DataFrame(table_rows), hide_index=True, width="stretch")
 
@@ -202,7 +177,7 @@ if compare_rows:
         {"Slot": "Boots — present",            "v8": "—",    "v26": "—",    "merged": "0.90", "merged-m": "0.91", "mergedpeople": "0.91", "Altec": "0.73"},
         {"Slot": "Boots — absent",             "v8": "—",    "v26": "—",    "merged": "0.86", "merged-m": "0.89", "mergedpeople": "0.89", "Altec": "—"},
     ]
-    st.dataframe(pd.DataFrame(PER_CLASS), hide_index=True, width="stretch")
+    st.dataframe(pd.DataFrame(PER_CLASS), hide_index=True, width="stretch", height="content")
     st.caption(
         "Numbers are each class's diagonal in its confusion matrix — of every box that was "
         "truly that class, the fraction the model predicted correctly (≈ recall). Blank cells "
@@ -214,23 +189,37 @@ if compare_rows:
         "Glasses for Altec)."
     )
 
-    # Full confusion matrices below the table — the underlying image each number above came
-    # from, plus every class (including the ones not in the table) with its confusions visible.
-    st.subheader("Confusion matrices")
-    cm_cols = st.columns(2)
-    for i, (key, info, results_path) in enumerate(compare_rows):
-        run_dir = results_path.parent
-        cm_path = run_dir / "confusion_matrix_normalized.png"
-        if not cm_path.exists():
-            cm_path = run_dir / "confusion_matrix.png"
-        with cm_cols[i % 2]:
-            st.markdown(f"**{info['compare_label']}** — {info.get('label', key)}")
-            if cm_path.exists():
-                st.image(str(cm_path), width="stretch")
-            else:
-                st.info("No confusion matrix found for this run.")
 
-    st.divider()
+
+st.header("Per-model training details")
+
+with st.expander("Baseline classifier"):
+    if STATS_PATH.exists():
+        with open(STATS_PATH) as f:
+            stats = json.load(f)
+        col1, col2, col3 = st.columns(3)
+        col1.metric("This model (val accuracy)", f"{stats['val_accuracy']:.0%}")
+        col2.metric(f"Majority-class baseline ({stats['majority_class']})", f"{stats['majority_baseline_accuracy']:.0%}")
+        col3.metric("Random-guess baseline", f"{stats['random_guess_accuracy']:.0%}")
+    else:
+        st.info("No trained baseline model yet — run train_baseline_classifier.py first.")
+
+    if HISTORY_PATH.exists():
+        with open(HISTORY_PATH) as f:
+            history = json.load(f)
+        st.subheader("Training curves — is this model overfitting?")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.caption("Loss per epoch")
+            st.line_chart(pd.DataFrame({"train": history["loss"], "val": history["val_loss"]}))
+        with col2:
+            st.caption("Accuracy per epoch")
+            st.line_chart(pd.DataFrame({"train": history["accuracy"], "val": history["val_accuracy"]}))
+        st.caption(
+            "Training loss/accuracy keep improving while validation plateaus early — a classic "
+            "overfitting signature. The model is overconfident on out-of-distribution input."
+        )
+
 
 if not runs_to_show:
     st.info("No YOLO training runs configured yet — add an entry to RUN_INFO in this file.")
@@ -243,70 +232,71 @@ else:
         map50_95_col = next((c for c in df.columns if "mAP50-95" in c), None)
         map50_col = next((c for c in df.columns if "mAP50" in c and "mAP50-95" not in c), None)
 
-        st.subheader(info.get("label", run_dir.name))
-        if info.get("caption"):
-            st.caption(info["caption"])
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Epochs completed", len(df))
-        col2.metric("mAP50", f"{last[map50_col]:.3f}" if map50_col else "n/a")
-        col3.metric("mAP50-95", f"{last[map50_95_col]:.3f}" if map50_95_col else "n/a")
+        with st.expander(info.get("label", run_dir.name)):
+            if info.get("caption"):
+                st.caption(info["caption"])
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Epochs completed", len(df))
+            col2.metric("mAP50", f"{last[map50_col]:.3f}" if map50_col else "n/a")
+            col3.metric("mAP50-95", f"{last[map50_95_col]:.3f}" if map50_95_col else "n/a")
 
-        # Per-epoch curves, straight from results.csv (one row per epoch).
-        box_train, box_val = _find_col(df, "train", "box_loss"), _find_col(df, "val", "box_loss")
-        cls_train, cls_val = _find_col(df, "train", "cls_loss"), _find_col(df, "val", "cls_loss")
-        dfl_train, dfl_val = _find_col(df, "train", "dfl_loss"), _find_col(df, "val", "dfl_loss")
-        precision_col = _find_col(df, "precision")
-        recall_col = _find_col(df, "recall")
+            # Per-epoch curves, straight from results.csv (one row per epoch).
+            box_train, box_val = _find_col(df, "train", "box_loss"), _find_col(df, "val", "box_loss")
+            cls_train, cls_val = _find_col(df, "train", "cls_loss"), _find_col(df, "val", "cls_loss")
+            dfl_train, dfl_val = _find_col(df, "train", "dfl_loss"), _find_col(df, "val", "dfl_loss")
+            precision_col = _find_col(df, "precision")
+            recall_col = _find_col(df, "recall")
 
-        curve_col1, curve_col2 = st.columns(2)
-        with curve_col1:
-            if all([box_train, cls_train, dfl_train]):
-                st.caption("Loss per epoch (box + cls + dfl, summed)")
-                loss_data = {"train": df[box_train] + df[cls_train] + df[dfl_train]}
-                if all([box_val, cls_val, dfl_val]):
-                    loss_data["val"] = df[box_val] + df[cls_val] + df[dfl_val]
-                st.line_chart(pd.DataFrame(loss_data))
+            curve_col1, curve_col2 = st.columns(2)
+            with curve_col1:
+                if all([box_train, cls_train, dfl_train]):
+                    st.caption("Loss per epoch (box + cls + dfl, summed)")
+                    loss_data = {"train": df[box_train] + df[cls_train] + df[dfl_train]}
+                    if all([box_val, cls_val, dfl_val]):
+                        loss_data["val"] = df[box_val] + df[cls_val] + df[dfl_val]
+                    st.line_chart(pd.DataFrame(loss_data))
+                else:
+                    st.caption("Loss columns not found in results.csv")
+            with curve_col2:
+                if map50_col and map50_95_col:
+                    st.caption("mAP per epoch")
+                    st.line_chart(pd.DataFrame({"mAP50": df[map50_col], "mAP50-95": df[map50_95_col]}))
+                else:
+                    st.caption("mAP columns not found in results.csv")
+
+            if precision_col and recall_col:
+                st.caption("Precision / recall per epoch")
+                st.line_chart(pd.DataFrame({"precision": df[precision_col], "recall": df[recall_col]}))
+
+            # results.csv is aggregate-only (one row per epoch, no per-class columns) —
+            # Ultralytics never writes a per-class numeric table. The confusion matrix and the
+            # Box P/R/F1/PR curves it drops in the run folder ARE the real per-class breakdown,
+            # so surface the confusion matrix directly (most readable at a glance) and keep the
+            # rest just below.
+            cm_path = run_dir / "confusion_matrix_normalized.png"
+            if not cm_path.exists():
+                cm_path = run_dir / "confusion_matrix.png"
+            if cm_path.exists():
+                st.caption("Per-class detection breakdown (confusion matrix — diagonal ≈ per-class recall)")
+                st.image(str(cm_path), width="stretch")
             else:
-                st.caption("Loss columns not found in results.csv")
-        with curve_col2:
-            if map50_col and map50_95_col:
-                st.caption("mAP per epoch")
-                st.line_chart(pd.DataFrame({"mAP50": df[map50_col], "mAP50-95": df[map50_95_col]}))
-            else:
-                st.caption("mAP columns not found in results.csv")
+                st.caption("No confusion matrix found for this run.")
 
-        if precision_col and recall_col:
-            st.caption("Precision / recall per epoch")
-            st.line_chart(pd.DataFrame({"precision": df[precision_col], "recall": df[recall_col]}))
-
-        # results.csv is aggregate-only (one row per epoch, no per-class columns) — Ultralytics
-        # never writes a per-class numeric table. The confusion matrix and the Box P/R/F1/PR
-        # curves it drops in the run folder ARE the real per-class breakdown, so surface the
-        # confusion matrix directly (most readable at a glance) and keep the rest one click away.
-        cm_path = run_dir / "confusion_matrix_normalized.png"
-        if not cm_path.exists():
-            cm_path = run_dir / "confusion_matrix.png"
-        if cm_path.exists():
-            st.caption("Per-class detection breakdown (confusion matrix — diagonal ≈ per-class recall)")
-            st.image(str(cm_path), width="stretch")
-        else:
-            st.caption("No confusion matrix found for this run.")
-
-        # Ultralytics also drops other ready-made plots in the run folder — no need to rebuild
-        # these from scratch, just surface them.
-        extra_plots = {
-            "results.png": "All metrics, Ultralytics' own summary grid",
-            "confusion_matrix.png": "Confusion matrix (raw counts)",
-            "confusion_matrix_normalized.png": "Confusion matrix (normalized)",
-            "BoxPR_curve.png": "Precision-recall curve, per class",
-            "BoxP_curve.png": "Precision curve, per class",
-            "BoxR_curve.png": "Recall curve, per class",
-            "BoxF1_curve.png": "F1 curve, per class",
-        }
-        available_plots = [(name, caption) for name, caption in extra_plots.items() if (run_dir / name).exists()]
-        if available_plots:
-            with st.expander("More plots from this run (per-class curves, raw confusion matrix, summary grid)"):
+            # Ultralytics also drops other ready-made plots in the run folder — no need to
+            # rebuild these from scratch, just surface them. (No nested expander here — this
+            # whole block is already inside one, and Streamlit doesn't allow expanders within
+            # expanders.)
+            extra_plots = {
+                "results.png": "All metrics, Ultralytics' own summary grid",
+                "confusion_matrix.png": "Confusion matrix (raw counts)",
+                "confusion_matrix_normalized.png": "Confusion matrix (normalized)",
+                "BoxPR_curve.png": "Precision-recall curve, per class",
+                "BoxP_curve.png": "Precision curve, per class",
+                "BoxR_curve.png": "Recall curve, per class",
+                "BoxF1_curve.png": "F1 curve, per class",
+            }
+            available_plots = [(name, caption) for name, caption in extra_plots.items() if (run_dir / name).exists()]
+            if available_plots:
+                st.caption("More plots from this run (per-class curves, raw confusion matrix, summary grid)")
                 for name, caption in available_plots:
                     st.image(str(run_dir / name), caption=caption, width="stretch")
-
-        st.divider()
