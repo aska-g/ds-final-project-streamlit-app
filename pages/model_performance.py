@@ -85,7 +85,7 @@ RUN_INFO = {
         "caption": (
             "Trained by a teammate outside this repo on a merged dataset (9 classes: person, "
             "helmet/no-helmet, vest/no-vest, gloves/no-gloves, boots/no-boots). Working Person "
-            "class (0.83 recall) plus two PPE items no other run here tracks. Shown on Model "
+            "class (83% recall) plus two PPE items no other run here tracks. Shown on Model "
             "Comparison and wired into the app's compliance logic."
         ),
         "compare_label": "merged",
@@ -111,10 +111,10 @@ RUN_INFO = {
             "Same run setup as yolo26m_merged_150e, trained instead on \"mergedpeople\": "
             "data/merged with ppe_detection_m's Person boxes filled in via pseudo-labeling "
             "(see person_pseudolabels_test.ipynb) rather than left absent. Early-stopped at "
-            "134/150 epochs. Slightly better Person recall (0.88 vs 0.86) and aggregate "
+            "134/150 epochs. Slightly better Person recall (88% vs 86%) and aggregate "
             "mAP50-95/recall than yolo26m_merged_150e, but a real trade-off: its confusion "
-            "matrix shows it also misclassifies far more true background as \"person\" (0.31 "
-            "vs 0.16), driving its lower aggregate precision (0.912 vs 0.922) — why "
+            "matrix shows it also misclassifies far more true background as \"person\" (31% "
+            "vs 16%), driving its lower aggregate precision (91,2% vs 92,2%) — why "
             "yolo26m_merged_150e, not this run, was chosen as the app's default."
         ),
         "compare_label": "mergedpeople",

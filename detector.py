@@ -36,13 +36,13 @@ V8_LABEL = "YOLOv8n · pretrained_100e"
 # trained on a different 7-class dataset (ppe_yolo26) with no working Person
 # detection. yolo26s_css_100e is the real comparable run: same css-data
 # dataset and class names as v8, verified via results.csv/confusion_matrix —
-# Person recall 0.83, in line with every other class, and it beats v8 on
+# Person recall 83%, in line with every other class, and it beats v8 on
 # recall/mAP50/mAP50-95. Use this one.
 V26_WEIGHTS = REPO_ROOT / "runs" / "yolo26s_css_100e" / "weights" / "best.pt"
 V26_LABEL = "YOLO26s · yolo26s_css_100e"
 
 # yolo26s_merged_100e — a teammate's run on a merged dataset with a working
-# Person class (0.83 recall) PLUS two item classes v8/yolo26s_css_100e never
+# Person class (83% recall) PLUS two item classes v8/yolo26s_css_100e never
 # saw: gloves and boots (each with a matching no-gloves/no-boots negative).
 # Fully comparable to the two runs above on hardhat/vest, and additionally
 # exercises the gloves/boots slots end to end.
@@ -76,10 +76,10 @@ MERGED_M_LABEL = "YOLO26m · yolo26m_merged_150e"
 # yolo26m_mergedpeople_150e — same run setup as yolo26m_merged_150e above, trained instead on
 # "mergedpeople": data/merged with ppe_detection_m's Person boxes filled in via pseudo-labeling
 # (see person_pseudolabels_test.ipynb) rather than left absent. Early-stopped at 134/150
-# epochs. Slightly better Person recall (0.88 vs 0.86) and aggregate mAP50-95/recall than
+# epochs. Slightly better Person recall (88% vs 86%) and aggregate mAP50-95/recall than
 # yolo26m_merged_150e, but a real trade-off, not a clean win: its confusion matrix shows it
-# also misclassifies far more true background as "person" (0.31 vs 0.16), which shows up as
-# lower aggregate precision (0.912 vs 0.922) — why MERGED_M_WEIGHTS, not this one, was chosen
+# also misclassifies far more true background as "person" (31% vs 16%), which shows up as
+# lower aggregate precision (91,2% vs 92,2%) — why MERGED_M_WEIGHTS, not this one, was chosen
 # as the default. Kept live on Model Comparison so the trade-off is visible side by side.
 MERGEDPEOPLE_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_mergedpeople_150e" / "weights" / "best.pt"
 MERGEDPEOPLE_LABEL = "YOLO26m · yolo26m_mergedpeople_150e"
@@ -87,8 +87,8 @@ MERGEDPEOPLE_LABEL = "YOLO26m · yolo26m_mergedpeople_150e"
 # yolo26m_merged_150ev2 — a rerun of yolo26m_merged_150e: same merged dataset/vocabulary,
 # same yolo26m backbone, same epochs=150/patience=20 config (see args.yaml), early-stopped at
 # 146/150 epochs. Final-epoch aggregate metrics are essentially a wash against
-# yolo26m_merged_150e (precision 0.915 vs 0.922, recall 0.846 vs 0.840, mAP50 0.890 vs 0.895,
-# mAP50-95 0.591 vs 0.596) -- this is now the app's default on the Demo page; see
+# yolo26m_merged_150e (precision 91,5% vs 92,2%, recall 84,6% vs 84,0%, mAP50 89,0% vs 89,5%,
+# mAP50-95 59,1% vs 59,6%) -- this is now the app's default on the Demo page; see
 # yolo26m_merged_150e's comment above for why that run was chosen over yolo26m_mergedpeople_150e
 # in the first place, which still applies here.
 MERGED_M_V2_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_merged_150ev2" / "weights" / "best.pt"
