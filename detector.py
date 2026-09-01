@@ -94,6 +94,23 @@ MERGEDPEOPLE_LABEL = "YOLO26m · yolo26m_mergedpeople_150e"
 MERGED_M_V2_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_merged_150ev2" / "weights" / "best.pt"
 MERGED_M_V2_LABEL = "YOLO26m · yolo26m_merged_150ev2"
 
+# yolo26m_css_150e-2 — same css-data dataset and class list as yolo26s_css_100e (V26_WEIGHTS)
+# above, but the larger yolo26m backbone trained for 150 epochs (patience=20, ran to
+# completion). Beats yolo26s_css_100e on every aggregate metric (precision 94,1% vs 89,7%,
+# recall 82,4% vs 79,4%, mAP50 88,5% vs 86,4%, mAP50-95 64,6% vs 58,6%). Not wired in as any
+# page's default -- added for Model Comparison alongside yolo26m_css_300e below.
+CSS_M_150E_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_css_150e-2" / "weights" / "best.pt"
+CSS_M_150E_LABEL = "YOLO26m · yolo26m_css_150e-2"
+
+# yolo26m_css_300e — same css-data dataset/vocabulary and yolo26m backbone as
+# yolo26m_css_150e-2 above, extended to a 300-epoch schedule (patience=25), early-stopped at
+# 246/300. Further improves every aggregate metric over the 150-epoch run (precision 96,1% vs
+# 94,1%, recall 84,2% vs 82,4%, mAP50 90,6% vs 88,5%, mAP50-95 66,1% vs 64,6%) -- the
+# best-performing model in this whole comparison by every aggregate metric, though it was
+# never wired in as any page's live default.
+CSS_M_300E_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_css_300e" / "weights" / "best.pt"
+CSS_M_300E_LABEL = "YOLO26m · yolo26m_css_300e"
+
 DEFAULT_WEIGHTS = MERGED_M_V2_WEIGHTS
 DEFAULT_LABEL = MERGED_M_V2_LABEL
 

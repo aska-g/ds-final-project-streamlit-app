@@ -53,6 +53,34 @@ RUN_INFO = {
         "compare_label": "v26",
         "live_on_compare": True,
     },
+    "yolo26m_css_150e-2": {
+        "label": "YOLO26m — css-data, 150 epochs",
+        "path": "detect/yolo26m_css_150e-2",
+        "caption": (
+            "Same css-data dataset and class list as yolo26s_css_100e above, but the larger "
+            "YOLO26m backbone trained for 150 epochs (patience=20, ran to completion — no "
+            "early stopping). Beats yolo26s_css_100e on every aggregate metric (precision "
+            "94,1% vs 89,7%, recall 82,4% vs 79,4%, mAP50 88,5% vs 86,4%, mAP50-95 64,6% vs "
+            "58,6%). Shown on Model Comparison as \"css-m-150\"."
+        ),
+        "compare_label": "css-m-150",
+        "live_on_compare": True,
+    },
+    "yolo26m_css_300e": {
+        "label": "YOLO26m — css-data, 300 epochs",
+        "path": "detect/yolo26m_css_300e",
+        "caption": (
+            "Same css-data dataset/vocabulary and YOLO26m backbone as yolo26m_css_150e-2 "
+            "above, extended to a 300-epoch schedule (patience=25), early-stopped at 246/300. "
+            "Further improves every aggregate metric over the 150-epoch run (precision 96,1% "
+            "vs 94,1%, recall 84,2% vs 82,4%, mAP50 90,6% vs 88,5%, mAP50-95 66,1% vs 64,6%) — "
+            "the best-performing model in this whole comparison by every aggregate metric, "
+            "though it was never wired in as any page's live default. Shown on Model "
+            "Comparison as \"css-m-300\"."
+        ),
+        "compare_label": "css-m-300",
+        "live_on_compare": True,
+    },
     "yolo26s_merged_100e": {
         "label": "YOLO26s — merged dataset, 100 epochs",
         "path": "detect/yolo26s_merged_100e",
@@ -72,10 +100,25 @@ RUN_INFO = {
             "Same merged dataset/vocabulary as yolo26s_merged_100e above, but the larger "
             "YOLO26m backbone trained for the full 150 epochs (patience=20, ran to "
             "completion). Beats yolo26s_merged_100e on every aggregate metric and every "
-            "per-class confusion-matrix diagonal. Now the app's default model on the Demo "
-            "page — see Model Comparison for how it stacks up against yolo26m_mergedpeople_150e."
+            "per-class confusion-matrix diagonal. Superseded as the app's default by the "
+            "yolo26m_merged_150ev2 rerun below — kept here for Model Comparison; see that "
+            "entry for how it stacks up against yolo26m_mergedpeople_150e."
         ),
         "compare_label": "merged-m",
+        "live_on_compare": True,
+    },
+    "yolo26m_merged_150ev2": {
+        "label": "YOLO26m — merged dataset, 150 epochs (rerun v2)",
+        "path": "detect/yolo26m_merged_150ev2",
+        "caption": (
+            "A rerun of yolo26m_merged_150e above: same merged dataset/vocabulary, same "
+            "YOLO26m backbone, same 150-epoch/patience=20 config, early-stopped at 146/150 "
+            "epochs. Final-epoch metrics are essentially a wash against yolo26m_merged_150e "
+            "(precision 91,5% vs 92,2%, recall 84,6% vs 84,0%, mAP50 89,0% vs 89,5%, "
+            "mAP50-95 59,1% vs 59,6%) — this is the app's current default on the Demo page. "
+            "Shown on Model Comparison as \"merged-m-v2\"."
+        ),
+        "compare_label": "merged-m-v2",
         "live_on_compare": True,
     },
     "yolo26m_mergedpeople_150e": {
@@ -115,9 +158,9 @@ for key, info in RUN_INFO.items():
     if results_path.exists():
         runs_to_show.append((key, info, results_path))
 
-# Summary table — the 6 models currently on the Model Comparison page, side by side.
+# Summary table — the 9 models currently on the Model Comparison page, side by side.
 # yolov8n_scratch is deliberately excluded: it's shown lower on this page, but was never
-# added to Model Comparison, so it's not part of "the 4 models" this table is answering for.
+# added to Model Comparison, so it's not part of "the 9 models" this table is answering for.
 compare_rows = [(key, info, path) for key, info, path in runs_to_show if info.get("compare_label")]
 
 # Comparison overview first — this is what a visitor to this page wants to see before
@@ -153,9 +196,10 @@ if compare_rows:
     # Per-class numbers: results.csv is aggregate-only — Ultralytics never writes a per-class
     # CSV, the confusion matrix image is the only place these numbers exist. So this table is
     # manually transcribed from each run's confusion_matrix(_normalized).png diagonal (v8/v26/
-    # merged/Altec read 2026-08-27, merged-m/mergedpeople added 2026-08-28) — NOT recomputed
-    # live like the summary table above. If any of these 6 runs get retrained, re-read the new
-    # confusion matrix and update this table by hand.
+    # merged/Altec read 2026-08-27, merged-m/mergedpeople added 2026-08-28, css-m-150/css-m-300/
+    # merged-m-v2 added 2026-09-01) — NOT recomputed live like the summary table above. If any
+    # of these runs get retrained, re-read the new confusion matrix and update this table by
+    # hand.
     #
     # Rows follow the app's own tracked slots (detector.SLOT_ITEMS) — person, then each PPE
     # item's present/absent pair. "—" means that model's training data has no matching class at
@@ -165,17 +209,17 @@ if compare_rows:
     # its own terms rather than comparing raw numbers across columns as if it were one dataset.
     st.subheader("Per-class numbers")
     PER_CLASS = [
-        {"Slot": "Person",                    "v8": "0.80", "v26": "0.83", "merged": "0.83", "merged-m": "0.86", "mergedpeople": "0.88", "Altec": "—"},
-        {"Slot": "Head protection — present",  "v8": "0.76", "v26": "0.85", "merged": "0.94", "merged-m": "0.95", "mergedpeople": "0.95", "Altec": "0.89 / 0.78"},
-        {"Slot": "Head protection — absent",   "v8": "0.62", "v26": "0.67", "merged": "0.88", "merged-m": "0.90", "mergedpeople": "0.88", "Altec": "—"},
-        {"Slot": "Vest — present",             "v8": "0.78", "v26": "0.90", "merged": "0.76", "merged-m": "0.81", "mergedpeople": "0.81", "Altec": "0.70"},
-        {"Slot": "Vest — absent",              "v8": "0.70", "v26": "0.74", "merged": "0.78", "merged-m": "0.81", "mergedpeople": "0.82", "Altec": "—"},
-        {"Slot": "Mask — present",             "v8": "0.90", "v26": "0.95", "merged": "—",    "merged-m": "—",    "mergedpeople": "—",    "Altec": "0.83 / 0.70"},
-        {"Slot": "Mask — absent",              "v8": "0.66", "v26": "0.70", "merged": "—",    "merged-m": "—",    "mergedpeople": "—",    "Altec": "—"},
-        {"Slot": "Gloves — present",           "v8": "—",    "v26": "—",    "merged": "0.86", "merged-m": "0.88", "mergedpeople": "0.88", "Altec": "0.56"},
-        {"Slot": "Gloves — absent",            "v8": "—",    "v26": "—",    "merged": "0.83", "merged-m": "0.83", "mergedpeople": "0.82", "Altec": "—"},
-        {"Slot": "Boots — present",            "v8": "—",    "v26": "—",    "merged": "0.90", "merged-m": "0.91", "mergedpeople": "0.91", "Altec": "0.73"},
-        {"Slot": "Boots — absent",             "v8": "—",    "v26": "—",    "merged": "0.86", "merged-m": "0.89", "mergedpeople": "0.89", "Altec": "—"},
+        {"Slot": "Person",                    "v8": "0.80", "v26": "0.83", "css-m-150": "0.90", "css-m-300": "0.89", "merged": "0.83", "merged-m": "0.86", "merged-m-v2": "0.83", "mergedpeople": "0.88", "Altec": "—"},
+        {"Slot": "Head protection — present",  "v8": "0.76", "v26": "0.85", "css-m-150": "0.89", "css-m-300": "0.86", "merged": "0.94", "merged-m": "0.95", "merged-m-v2": "0.95", "mergedpeople": "0.95", "Altec": "0.89 / 0.78"},
+        {"Slot": "Head protection — absent",   "v8": "0.62", "v26": "0.67", "css-m-150": "0.77", "css-m-300": "0.83", "merged": "0.88", "merged-m": "0.90", "merged-m-v2": "0.89", "mergedpeople": "0.88", "Altec": "—"},
+        {"Slot": "Vest — present",             "v8": "0.78", "v26": "0.90", "css-m-150": "0.93", "css-m-300": "0.93", "merged": "0.76", "merged-m": "0.81", "merged-m-v2": "0.83", "mergedpeople": "0.81", "Altec": "0.70"},
+        {"Slot": "Vest — absent",              "v8": "0.70", "v26": "0.74", "css-m-150": "0.77", "css-m-300": "0.84", "merged": "0.78", "merged-m": "0.81", "merged-m-v2": "0.80", "mergedpeople": "0.82", "Altec": "—"},
+        {"Slot": "Mask — present",             "v8": "0.90", "v26": "0.95", "css-m-150": "0.95", "css-m-300": "0.95", "merged": "—",    "merged-m": "—",    "merged-m-v2": "—",    "mergedpeople": "—",    "Altec": "0.83 / 0.70"},
+        {"Slot": "Mask — absent",              "v8": "0.66", "v26": "0.70", "css-m-150": "0.82", "css-m-300": "0.88", "merged": "—",    "merged-m": "—",    "merged-m-v2": "—",    "mergedpeople": "—",    "Altec": "—"},
+        {"Slot": "Gloves — present",           "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.86", "merged-m": "0.88", "merged-m-v2": "0.87", "mergedpeople": "0.88", "Altec": "0.56"},
+        {"Slot": "Gloves — absent",            "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.83", "merged-m": "0.83", "merged-m-v2": "0.82", "mergedpeople": "0.82", "Altec": "—"},
+        {"Slot": "Boots — present",            "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.90", "merged-m": "0.91", "merged-m-v2": "0.92", "mergedpeople": "0.91", "Altec": "0.73"},
+        {"Slot": "Boots — absent",             "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.86", "merged-m": "0.89", "merged-m-v2": "0.88", "mergedpeople": "0.89", "Altec": "—"},
     ]
     st.dataframe(pd.DataFrame(PER_CLASS), hide_index=True, width="stretch", height="content")
     st.caption(
@@ -185,8 +229,8 @@ if compare_rows:
         "(Altec's Head protection / Mask rows) is two separate classes that model tracks for "
         "the same slot — e.g. Helmet and a lowercase duplicate \"helmet\" class, or Face_masks "
         "and Face_shield — see the confusion matrices below for the exact class names and full "
-        "picture, including classes not in this table (Safety Cone/machinery/vehicle for v8/v26, "
-        "Glasses for Altec)."
+        "picture, including classes not in this table (Safety Cone/machinery/vehicle for "
+        "v8/v26/css-m-150/css-m-300, Glasses for Altec)."
     )
 
 
