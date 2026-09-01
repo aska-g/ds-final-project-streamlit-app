@@ -2,4 +2,4 @@
 
 import dc_view
 
-dc_view.render("HI-VIS Landing.dc.html")
+dc_view.render("Write up.html")

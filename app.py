@@ -2,9 +2,9 @@
 
 import streamlit as st
 
-st.set_page_config(page_title="HI-VIS — PPE Compliance", layout="wide")
+st.set_page_config(page_title="SuperVisor — PPE Compliance", layout="wide")
 
-presentation_page = st.Page("pages/presentation.py", title="HI-VIS Presentation", default=True)
+presentation_page = st.Page("pages/presentation.py", title="SuperVisor Presentation", default=True)
 writeup_page = st.Page("pages/writeup.py", title="Write Up")
 demo_page = st.Page("pages/demo.py", title="Demo")
 compare_page = st.Page("pages/model_compare.py", title="Model Comparison")
