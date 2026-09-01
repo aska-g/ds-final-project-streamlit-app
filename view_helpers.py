@@ -15,6 +15,15 @@ import detector
 
 _FONT_PATH = Path(__file__).resolve().parent / "assets" / "fonts" / "IBMPlexMono-Bold.ttf"
 
+# SuperVisor logo. Read from assets/ so the SVG stays a single source of truth,
+# and inlined into the page HTML because Streamlit markdown cannot reference
+# repo files. The source svg's own width/height attrs are dropped so the CSS
+# size below wins.
+_LOGO_SVG_SRC = (Path(__file__).resolve().parent / "assets" / "supervisor-logo.svg").read_text().strip()
+LOGO_SVG = ('<svg viewBox="0 0 531 98" role="img" aria-label="SuperVisor" '
+            'style="display:block;height:28px;width:152px;flex:none;aspect-ratio:531/98">'
+            + _LOGO_SVG_SRC[_LOGO_SVG_SRC.index(">") + 1:])
+
 
 @functools.lru_cache(maxsize=None)
 def _label_font(size):
@@ -314,8 +323,7 @@ def header_html(subtitle, model_label=None):
     return f"""
     <div style="background:#141414;color:#FFFFFF;display:flex;align-items:center;gap:16px;
          padding:14px 24px;margin:0 0 20px 0;flex-wrap:wrap">
-      <div style="background:#EFE600;color:#141414;font-family:'Barlow Condensed',sans-serif;
-           font-weight:800;font-size:24px;letter-spacing:1px;padding:2px 10px 4px;line-height:1">HI-VIS</div>
+      {LOGO_SVG}
       <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;
            letter-spacing:2.5px">{subtitle}</div>
       {model_bit}
