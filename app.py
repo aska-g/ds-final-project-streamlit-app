@@ -8,6 +8,7 @@ presentation_page = st.Page("pages/presentation.py", title="HI-VIS Presentation"
 writeup_page = st.Page("pages/writeup.py", title="Write Up")
 demo_page = st.Page("pages/demo.py", title="Demo")
 compare_page = st.Page("pages/model_compare.py", title="Model Comparison")
+historical_page = st.Page("pages/historical.py", title="Historical Data")
 performance_page = st.Page("pages/model_performance.py", title="Model Performance")
 
-st.navigation([presentation_page, writeup_page, demo_page, compare_page, performance_page], position="top").run()
+st.navigation([presentation_page, writeup_page, demo_page, compare_page, historical_page, performance_page], position="top").run()

@@ -231,21 +231,74 @@ HV_STYLE_CSS = """
 html, body, [class*="css"] { font-family:'IBM Plex Sans',sans-serif; }
 .stApp { background:#E4E5E2; }
 #MainMenu { visibility:hidden; }
-.block-container { max-width:1400px; }
+.block-container { max-width:1400px; padding-top:3rem !important; }
 .hv-mono { font-family:'IBM Plex Mono',monospace; }
 .hv-h1 { font-family:'Barlow Condensed',sans-serif; font-weight:800; letter-spacing:.5px; color:#141414; }
 @keyframes hvspin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 @keyframes hvstripe { from { background-position:0 0; } to { background-position:28px 0; } }
 [data-testid="stFileUploaderDropzone"] { background:#FFFFFF !important; border:2px dashed #141414 !important; border-radius:0 !important; }
 [role="radiogroup"] label { border:1px solid #141414; padding:4px 12px; margin-right:0 !important; background:#FFFFFF; }
-[data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] { border-radius:0 !important; font-weight:600 !important; }
-[data-testid="stBaseButton-secondary"] { border:1px solid #141414 !important; background:#FFFFFF !important; color:#141414 !important; }
+/* Buttons: rounded, with a hover lift/shadow and a press-down on click --
+   the rest of the app stays hard-edged (that's the brand), but buttons are
+   the one thing you physically click, so they get the tactile modern
+   treatment: motion and elevation, not just a flat color swap. */
+[data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
+    border-radius:8px !important; font-weight:600 !important;
+    box-shadow:0 1px 2px rgba(20,20,20,0.06) !important;
+    transition:transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease !important;
+}
+[data-testid="stBaseButton-secondary"] { border:1px solid #C4C6C0 !important; background:#FFFFFF !important; color:#141414 !important; }
 [data-testid="stBaseButton-primary"] { border:1px solid #141414 !important; background:#141414 !important; color:#FFFFFF !important; }
+[data-testid="stBaseButton-secondary"]:hover { border-color:#141414 !important; box-shadow:0 4px 10px rgba(20,20,20,0.12) !important; transform:translateY(-1px); }
+[data-testid="stBaseButton-primary"]:hover { background:#2A2B28 !important; box-shadow:0 4px 10px rgba(20,20,20,0.18) !important; transform:translateY(-1px); }
+[data-testid="stBaseButton-secondary"]:active, [data-testid="stBaseButton-primary"]:active { transform:translateY(0); box-shadow:0 1px 2px rgba(20,20,20,0.08) !important; }
+/* Borderless "toggle section" expander (e.g. MANAGE PHOTOS / Admin) -- the
+   settings-gear icon (passed via st.expander(icon=...)) is the affordance
+   now, so the boxed outline around it is just extra chrome. */
+[data-testid="stExpander"] > details { border:none !important; background:transparent !important; }
+/* Streamlit swaps the custom icon (icon=":material/settings:") for its own
+   chevron on hover, regardless of the icon param -- the DOM element's own
+   testid literally changes from stExpanderIcon to stIconMaterial when the
+   mouse is over the summary bar. Pin the gear glyph in that slot instead
+   of fighting the swap: hide whichever native icon is currently rendered
+   and draw a fixed gear via ::before, so it never flips to a chevron. */
+[data-testid="stExpander"] summary [data-testid="stExpanderIcon"],
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
+    display:none !important;
+}
+/* Streamlit paints its own full-row hover background on the summary bar --
+   suppress that and instead give just the icon glyph a small, icon-sized
+   hover target (like a real icon button), not the whole card width. */
+[data-testid="stExpander"] summary:hover {
+    background:transparent !important;
+}
+[data-testid="stExpander"] summary > span > span:first-child {
+    display:inline-flex !important; align-items:center !important; justify-content:center !important;
+    width:34px !important; height:34px !important; border-radius:6px !important;
+    transition:background-color 120ms ease !important;
+}
+[data-testid="stExpander"] summary > span > span:first-child:hover {
+    background:#C4C6C0 !important;
+}
+[data-testid="stExpander"] summary > span > span:first-child::before {
+    content:"⚙" !important; font-family:initial !important; font-size:20px !important;
+    color:#141414 !important; line-height:1 !important; display:inline-block !important;
+}
 [data-testid="stAlert"] { background:#FFFFFF !important; border:1px solid #C4C6C0 !important; border-radius:0 !important; }
 [data-testid="stAlertContainer"] { background:#FFFFFF !important; color:#141414 !important; }
 [data-testid="stAlertContentInfo"] { color:#141414 !important; }
 [data-testid="stCaptionContainer"] { color:#4A4B47 !important; }
 hr { border-color:#C4C6C0; }
+/* Chart cards (COMPLIANCE OVER TIME / VIOLATIONS BY TYPE) -- want the
+   white background + padding a bordered container gives, but Joanna does
+   not want the border/rounded-corner card look, and st.container's own
+   testid is shared by every bordered container in the app (including the
+   legit day-detail-panel one), so target these two by their key= instead
+   of the shared testid. */
+.st-key-tl_chart1_card, .st-key-tl_chart2_card {
+    background:#FFFFFF !important; border:none !important; border-radius:0 !important;
+}
+
 </style>
 """
 

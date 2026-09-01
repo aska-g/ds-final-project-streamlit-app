@@ -9,7 +9,6 @@ component iframe -- so the script is inlined instead.
 from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 _ROOT = Path(__file__).resolve().parent
 _RUNTIME_TAG = '<script src="../assets/support.js"></script>'
@@ -36,10 +35,9 @@ _FULLSCREEN_CSS = """<style>
 .stAppViewContainer { top: 0 !important; }
 .stMainBlockContainer { padding: 0 !important; gap: 0 !important; max-width: 100% !important; }
 .stMainBlockContainer > div, .stVerticalBlock { gap: 0 !important; }
-iframe[title="streamlit.components.v1.iframe"] {
-    display: block;
-    width: 100% !important;
-    height: 100vh !important;
+iframe.stIFrame {
+    position: fixed; inset: 0; border: 0;
+    width: 100% !important; height: 100% !important;
 }
 #dc-nav-zone {
     position: fixed; top: 0; left: 0; right: 0; height: 14px; z-index: 9999;
@@ -60,9 +58,9 @@ _NAV = '<div id="dc-nav-zone"><div id="dc-nav">' + "".join(
 ) + "</div></div>"
 
 
-def render(name, height=900):
+def render(name):
     st.markdown(_FULLSCREEN_CSS + _NAV, unsafe_allow_html=True)
-    components.html(_document(name), height=height, scrolling=False)
+    st.iframe(_document(name), height="stretch")
 
 
 if __name__ == "__main__":
