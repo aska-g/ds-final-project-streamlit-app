@@ -68,8 +68,8 @@ ALTEC_NO_PERSON_NOTE = (
 # yolo26m_merged_150e — same merged dataset/vocabulary as yolo26s_merged_100e above, but the
 # larger YOLO26m backbone trained for the full 150 epochs (patience=20, ran to completion
 # rather than early-stopping). Beats yolo26s_merged_100e on every aggregate metric and every
-# per-class confusion-matrix diagonal — this is now the app's default (see DEFAULT_WEIGHTS
-# below).
+# per-class confusion-matrix diagonal. Superseded as the app's default by the yolo26m_merged_150ev2
+# rerun below -- kept here for Model Comparison.
 MERGED_M_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_merged_150e" / "weights" / "best.pt"
 MERGED_M_LABEL = "YOLO26m · yolo26m_merged_150e"
 
@@ -84,8 +84,18 @@ MERGED_M_LABEL = "YOLO26m · yolo26m_merged_150e"
 MERGEDPEOPLE_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_mergedpeople_150e" / "weights" / "best.pt"
 MERGEDPEOPLE_LABEL = "YOLO26m · yolo26m_mergedpeople_150e"
 
-DEFAULT_WEIGHTS = MERGED_M_WEIGHTS
-DEFAULT_LABEL = MERGED_M_LABEL
+# yolo26m_merged_150ev2 — a rerun of yolo26m_merged_150e: same merged dataset/vocabulary,
+# same yolo26m backbone, same epochs=150/patience=20 config (see args.yaml), early-stopped at
+# 146/150 epochs. Final-epoch aggregate metrics are essentially a wash against
+# yolo26m_merged_150e (precision 0.915 vs 0.922, recall 0.846 vs 0.840, mAP50 0.890 vs 0.895,
+# mAP50-95 0.591 vs 0.596) -- this is now the app's default on the Demo page; see
+# yolo26m_merged_150e's comment above for why that run was chosen over yolo26m_mergedpeople_150e
+# in the first place, which still applies here.
+MERGED_M_V2_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_merged_150ev2" / "weights" / "best.pt"
+MERGED_M_V2_LABEL = "YOLO26m · yolo26m_merged_150ev2"
+
+DEFAULT_WEIGHTS = MERGED_M_V2_WEIGHTS
+DEFAULT_LABEL = MERGED_M_V2_LABEL
 
 _weights_env = os.environ.get("HIVIS_MODEL_PATH")
 WEIGHTS_PATH = (REPO_ROOT / _weights_env) if _weights_env else DEFAULT_WEIGHTS
