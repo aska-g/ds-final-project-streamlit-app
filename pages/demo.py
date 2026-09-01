@@ -360,15 +360,15 @@ if st.session_state.view == "results":
         st.markdown('<div class="hv-h1" style="font-size:16px">WHAT COUNTS AS COMPLIANT</div>', unsafe_allow_html=True)
         rc1, rc2, rc3, rc4, rc5 = st.columns(5)
         with rc1:
-            st.checkbox("Hardhat required", key="require_hardhat")
+            st.checkbox("Hardhat required", value=True, key="require_hardhat")
         with rc2:
-            st.checkbox("Hi-vis vest required", key="require_vest")
+            st.checkbox("Hi-vis vest required", value=True, key="require_vest")
         with rc3:
-            st.checkbox("Mask required", key="require_mask")
+            st.checkbox("Mask required", value=True, key="require_mask")
         with rc4:
-            st.checkbox("Gloves required", key="require_gloves")
+            st.checkbox("Gloves required", value=True, key="require_gloves")
         with rc5:
-            st.checkbox("Boots required", key="require_boots")
+            st.checkbox("Boots required", value=True, key="require_boots")
         st.markdown(
             '<div style="font-size:12.5px;color:#4A4B47;margin-top:6px">Uncheck an item to stop flagging it. '
             'Mask uses the css-data vocabulary (detected by v8 / yolo26s_css_100e). Gloves/boots are only '
