@@ -53,8 +53,20 @@ st.markdown(
 )
 
 MODELS = [
+    # merged-m-v2 (the app's current default) and supervisorv1 (first run on the new,
+    # all-5-slots-in-one-label-set SuperVisor dataset) go first, side by side, so they land
+    # in the same row at the top of the grid below — current production model vs. the
+    # newest dataset's first attempt.
+    {"kind": "live", "key": "merged-m-v2", "weights": detector.MERGED_M_V2_WEIGHTS,
+     "label": detector.MERGED_M_V2_LABEL},
+    {"kind": "live", "key": "supervisorv1", "weights": detector.SUPERVISOR_V1_WEIGHTS,
+     "label": detector.SUPERVISOR_V1_LABEL},
     {"kind": "live", "key": "v8", "weights": detector.V8_WEIGHTS, "label": detector.V8_LABEL},
     {"kind": "live", "key": "v26", "weights": detector.V26_WEIGHTS, "label": detector.V26_LABEL},
+    {"kind": "live", "key": "css-m-150", "weights": detector.CSS_M_150E_WEIGHTS,
+     "label": detector.CSS_M_150E_LABEL},
+    {"kind": "live", "key": "css-m-300", "weights": detector.CSS_M_300E_WEIGHTS,
+     "label": detector.CSS_M_300E_LABEL},
     {"kind": "live", "key": "merged", "weights": detector.MERGED_WEIGHTS, "label": detector.MERGED_LABEL},
     {"kind": "live", "key": "merged-m", "weights": detector.MERGED_M_WEIGHTS, "label": detector.MERGED_M_LABEL},
     {"kind": "live", "key": "mergedpeople", "weights": detector.MERGEDPEOPLE_WEIGHTS,
