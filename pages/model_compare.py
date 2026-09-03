@@ -1,18 +1,33 @@
 """HI-VIS — side-by-side comparison of the trained runs. Deliberately minimal
 for now: no upload box of its own and no detail view (tiles aren't
-clickable) — it reuses whatever batch is already loaded on the Demo page and
-runs every model that CAN produce a compliance verdict over it, showing the
-three core stat tiles (Photos Processed / PPE Exceptions Flagged / Image
-Compliance) plus the actual photos with their overlays, verdict and
-confidence, per model, side by side, so the runs can be judged on identical
-input.
+clickable) — it runs the two models we're actively comparing over a fixed
+set of demo photos (assets/images/), not whatever's loaded on the Demo
+page, so this page always shows the same comparison regardless of what
+anyone's uploaded elsewhere. Shows the three core stat tiles (Photos
+Processed / PPE Exceptions Flagged / Image Compliance) per model, then the
+same photo run through both models side by side, one row per photo, so the
+two can be judged directly against each other on identical input. The
+whole page body (name label, stat tiles, the PHOTOS divider, every photo
+row) is ONE CSS grid rather than separate st.columns() calls — see the
+comment below — so each model's name label can be position:sticky and stay
+visible the whole way down, with exactly one copy of it.
 
-One model — yolo26s_Altec_PPE_100e — has no Person class in its training
-data at all (confirmed via its confusion matrix), so it structurally cannot
-produce a per-person compliance verdict. Per policy this app never fakes a
-person box to paper over that, so it gets its own card explaining why
-instead of a live result. See detector.ALTEC_NO_PERSON_NOTE.
+Raw detections are read from assets/images/compare_cache.json, precomputed
+by precompute_compare_cache.py — see that script's docstring. Re-run it
+whenever a demo image is added/removed/replaced, or either model's weights
+change. If the cache is missing an entry for a given model (script never
+run, or a new image landed since), that one model falls back to running
+live here instead of breaking the page — slower, but correct.
+
+The other trained runs (v8, v26, css-m-150/300, merged, merged-m,
+mergedpeople, altec) aren't dropped — they're just not shown on this page.
+Their weights and training runs stay in the repo; see detector.py and the
+Model Performance page for their metrics.
 """
+
+import json
+import re
+from pathlib import Path
 
 import streamlit as st
 
@@ -22,19 +37,24 @@ import view_helpers as vh
 st.markdown(vh.HV_STYLE_CSS, unsafe_allow_html=True)
 st.markdown(vh.header_html("MODEL COMPARISON"), unsafe_allow_html=True)
 
-# Same batch cache the Demo page fills — shared via st.session_state, so
-# whatever's already uploaded there is what gets compared here.
-cache = st.session_state.get("_detections", {})
-batch_order = st.session_state.get("batch_order", [])
-items = [{"key": k, **cache[k]} for k in batch_order if k in cache]
+# Fixed demo set, not the Demo page's batch — so this page's comparison never
+# depends on what (if anything) someone's uploaded elsewhere. Kept in sync
+# with precompute_compare_cache.py, which caches raw detections for exactly
+# this folder's images.
+IMAGES_DIR = detector.REPO_ROOT / "assets" / "images"
+CACHE_PATH = IMAGES_DIR / "compare_cache.json"
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 
-if not items:
-    st.info(
-        "No photos loaded yet. Upload a batch on the **Demo** page first — this page "
-        "runs every model that can produce a compliance verdict over whatever batch is "
-        "currently loaded, so there's nothing to compare until one exists."
-    )
+image_paths = sorted(
+    (p for p in IMAGES_DIR.iterdir() if p.is_file() and p.suffix.lower() in _IMAGE_EXTS),
+    key=lambda p: p.name,
+) if IMAGES_DIR.is_dir() else []
+
+if not image_paths:
+    st.info(f"No demo images found in `{IMAGES_DIR}`. Add some photos there to populate this page.")
     st.stop()
+
+items = [{"key": p.name, "name": p.name, "image": vh.load_image(p.read_bytes())} for p in image_paths]
 
 threshold = st.session_state.get("threshold", 0.35)
 required = tuple(
@@ -44,66 +64,117 @@ required = tuple(
     if st.session_state.get(f"require_{s}", dflt)
 )
 
-st.markdown(
-    f'<div style="font-size:12.5px;color:#4A4B47;margin-bottom:18px">Comparing runs on the current '
-    f'batch of <b>{len(items)}</b> photo{"s" if len(items) != 1 else ""}, at threshold '
-    f'<b>{threshold:.2f}</b>, using the same WHAT COUNTS AS COMPLIANT rule set as the Demo page. '
-    f'Change either on the Demo page to see this update here.</div>',
-    unsafe_allow_html=True,
-)
-
+# Only the two runs we're actively comparing in this deck's story: current
+# production model vs. the SuperVisor.v4 run (preprocessed dataset). Every
+# other trained run stays out of this page — see the module docstring.
 MODELS = [
-    # merged-m-v2 (the app's current default) and supervisorv1 (first run on the new,
-    # all-5-slots-in-one-label-set SuperVisor dataset) go first, side by side, so they land
-    # in the same row at the top of the grid below — current production model vs. the
-    # newest dataset's first attempt.
-    {"kind": "live", "key": "merged-m-v2", "weights": detector.MERGED_M_V2_WEIGHTS,
-     "label": detector.MERGED_M_V2_LABEL},
-    {"kind": "live", "key": "supervisorv1", "weights": detector.SUPERVISOR_V1_WEIGHTS,
-     "label": detector.SUPERVISOR_V1_LABEL},
-    {"kind": "live", "key": "v8", "weights": detector.V8_WEIGHTS, "label": detector.V8_LABEL},
-    {"kind": "live", "key": "v26", "weights": detector.V26_WEIGHTS, "label": detector.V26_LABEL},
-    {"kind": "live", "key": "css-m-150", "weights": detector.CSS_M_150E_WEIGHTS,
-     "label": detector.CSS_M_150E_LABEL},
-    {"kind": "live", "key": "css-m-300", "weights": detector.CSS_M_300E_WEIGHTS,
-     "label": detector.CSS_M_300E_LABEL},
-    {"kind": "live", "key": "merged", "weights": detector.MERGED_WEIGHTS, "label": detector.MERGED_LABEL},
-    {"kind": "live", "key": "merged-m", "weights": detector.MERGED_M_WEIGHTS, "label": detector.MERGED_M_LABEL},
-    {"kind": "live", "key": "mergedpeople", "weights": detector.MERGEDPEOPLE_WEIGHTS,
-     "label": detector.MERGEDPEOPLE_LABEL},
-    {"kind": "no_person", "key": "altec", "weights": detector.ALTEC_WEIGHTS, "label": detector.ALTEC_LABEL,
-     "note": detector.ALTEC_NO_PERSON_NOTE},
+    {"key": "merged-m-v2", "weights": detector.MERGED_M_V2_WEIGHTS, "label": detector.MERGED_M_V2_LABEL},
+    {"key": "supervisorv4", "weights": detector.SUPERVISOR_V4_WEIGHTS, "label": detector.SUPERVISOR_V4_LABEL},
 ]
 
-# Raw detections per model are cached here (keyed by model + photo) so
-# flipping the threshold slider on the Demo page — which reruns this page
-# too — never re-runs inference, only the cheap pure-python assess() step.
-st.session_state.setdefault("_compare_raw", {})
+
+@st.cache_data
+def _load_precomputed_cache(cache_path_str, cache_mtime):
+    """Cached on (path, mtime) so a re-run of precompute_compare_cache.py is
+    picked up without restarting the app — Streamlit's own file-watcher
+    reruns the script, and a changed mtime busts this cache."""
+    return json.loads(Path(cache_path_str).read_text())
 
 
-def render_live(col, model_key, weights_path, label):
-    with col:
-        st.markdown(f'<div class="hv-h1" style="font-size:20px;margin-bottom:10px">{label}</div>',
-                    unsafe_allow_html=True)
+_raw_cache = None
+if CACHE_PATH.exists():
+    try:
+        _raw_cache = _load_precomputed_cache(str(CACHE_PATH), CACHE_PATH.stat().st_mtime)
+    except (json.JSONDecodeError, OSError):
+        _raw_cache = None
 
-        model = detector.load_model(weights_path)
+# Per-model raw detections: precomputed cache first (fast — no model load,
+# no inference), live detect_raw() as a fallback only for whatever the cache
+# doesn't cover, so a missing/partial/stale cache degrades gracefully
+# instead of breaking the page.
+st.session_state.setdefault("_compare_raw_live", {})
+
+runs = []
+for m in MODELS:
+    entry = {"key": m["key"], "label": m["label"], "weights": m["weights"], "results": None, "warning": None}
+    cached_model = ((_raw_cache or {}).get("models", {})).get(m["key"], {}).get("results", {})
+    raw_by_image = {}
+    missing = []
+    for it in items:
+        if it["key"] in cached_model:
+            raw_by_image[it["key"]] = cached_model[it["key"]]
+        else:
+            missing.append(it)
+
+    if missing:
+        model = detector.load_model(m["weights"])
         if model is None:
-            st.warning(f"Weights not found at `{weights_path}`.")
-            return
+            entry["warning"] = f"Weights not found at `{m['weights']}`."
+        else:
+            live_cache = st.session_state._compare_raw_live.setdefault(m["key"], {})
+            for it in missing:
+                if it["key"] not in live_cache:
+                    live_cache[it["key"]] = detector.detect_raw(model, it["image"])
+                raw_by_image[it["key"]] = live_cache[it["key"]]
 
-        raw_cache = st.session_state._compare_raw.setdefault(model_key, {})
-        for it in items:
-            if it["key"] not in raw_cache:
-                raw_cache[it["key"]] = detector.detect_raw(model, it["image"])
+    if len(raw_by_image) == len(items):
+        entry["results"] = [detector.assess(raw_by_image[it["key"]], threshold, required=required) for it in items]
+    runs.append(entry)
 
-        results = [detector.assess(raw_cache[it["key"]], threshold, required=required) for it in items]
-        assessed = [r for r in results if r["verdict"] != "none"]
-        non_items = [r for r in results if r["verdict"] == "non"]
-        rate = round((len(assessed) - len(non_items)) / len(assessed) * 100) if assessed else 0
-        exc_bg = "#EFE600" if non_items else "#FFFFFF"
+# Built as ONE CSS grid — model name, stat tiles, the "PHOTOS" divider and
+# every photo cell all share the same parent grid container, rather than
+# each model's name+tiles living in its own short-lived st.columns() call.
+# position:sticky only stays "stuck" for as long as the viewport is
+# scrolling through its own parent element's box, so a label sitting alone
+# in a one-row st.columns() container un-sticks again almost immediately.
+# Making everything below the header one shared grid gives the sticky name
+# label the full scroll range of the whole page (tiles + every photo row)
+# to stay pinned across, with exactly ONE copy of each model's name.
+STICKY_TOP = "52px"  # nudge this if the header sits under/behind Streamlit's own toolbar
 
-        st.markdown(f"""
-        <div style="display:flex;flex-direction:column;gap:12px">
+
+def _flat(html):
+    """Collapse an HTML fragment to a single line. Concatenating many
+    multi-line, indented fragments back to back (no blank line between
+    them) makes Streamlit's markdown parser misread the join as an indented
+    code block instead of one raw HTML block, so every </div> and <img> in
+    it shows up as literal escaped text on the page instead of rendering.
+    Collapsing whitespace sidesteps that — safe here since nothing in this
+    grid depends on preserved whitespace."""
+    return re.sub(r"\s+", " ", html).strip()
+
+
+cells = []
+
+# Row 1, one cell per model: the sticky name label — the only copy of it.
+for run in runs:
+    cells.append(_flat(f"""
+        <div style="position:sticky;top:{STICKY_TOP};z-index:50;background:#E4E5E2;
+                    padding:10px 0 8px;margin-bottom:10px;border-bottom:1px solid #C4C6C0">
+          <div class="hv-h1" style="font-size:20px">{run['label']}</div>
+        </div>
+    """))
+
+# Row 2, one cell per model: stat tiles, or a warning card if this model has
+# no results at all (weights missing, etc.).
+for run in runs:
+    if run["results"] is None:
+        cells.append(_flat(f"""
+            <div style="background:#FFFFFF;border:2px dashed #9B9D97;padding:16px;
+                        color:#4A4B47;font-size:13px;margin-bottom:10px">
+              {run["warning"] or "No results for this model."}
+            </div>
+        """))
+        continue
+
+    results = run["results"]
+    assessed = [r for r in results if r["verdict"] != "none"]
+    non_items = [r for r in results if r["verdict"] == "non"]
+    rate = round((len(assessed) - len(non_items)) / len(assessed) * 100) if assessed else 0
+    exc_bg = "#EFE600" if non_items else "#FFFFFF"
+
+    cells.append(_flat(f"""
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:10px">
           <div style="background:#141414;color:#FFFFFF;padding:16px 20px 14px">
             <div class="hv-mono" style="font-size:11px;letter-spacing:1.5px;color:#9B9D97">PHOTOS PROCESSED</div>
             <div class="hv-h1" style="font-size:44px;line-height:1;color:#FFFFFF">{len(items)}</div>
@@ -120,51 +191,34 @@ def render_live(col, model_key, weights_path, label):
             <div style="font-size:12px;color:#71736D">{len(assessed)} of {len(items)} photos assessed at this threshold</div>
           </div>
         </div>
-        """, unsafe_allow_html=True)
+    """))
 
-        st.markdown('<div class="hv-h1" style="font-size:15px;margin:18px 0 8px">PHOTOS</div>', unsafe_allow_html=True)
-        photo_cols = st.columns(2)
-        for i, (it, r) in enumerate(zip(items, results)):
-            with photo_cols[i % 2]:
-                thumb_b64 = vh.b64_image(vh.draw_overlay(it["image"], r["persons"], show_boxes=True, show_labels=False), max_dim=360)
-                fc = vh.flag_confidence(r, required)
-                conf_label = f"{fc:.2f} conf" if fc is not None else "— conf"
-                st.markdown(f"""
-                <div style="background:#FFFFFF;border:1px solid #C4C6C0;margin-bottom:10px" title="{it['name']}">
-                  <img src="data:image/jpeg;base64,{thumb_b64}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"/>
-                  <div style="display:flex;align-items:center;gap:8px;padding:6px 8px">
-                    {vh.verdict_badge(r["verdict"])}
-                    <span class="hv-mono" style="font-size:10.5px;color:#4A4B47;white-space:nowrap">{conf_label}</span>
-                  </div>
-                </div>
-                """, unsafe_allow_html=True)
+# Row 3, spanning every column: the "PHOTOS" section divider.
 
 
-def render_no_person(col, label, note):
-    with col:
-        st.markdown(f'<div class="hv-h1" style="font-size:20px;margin-bottom:10px">{label}</div>',
-                    unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="background:#E4E5E2;border:2px dashed #9B9D97;padding:20px;display:flex;flex-direction:column;gap:10px">
-          <div class="hv-h1" style="font-size:32px;color:#71736D">N/A</div>
-          <div style="font-size:12.5px;color:#4A4B47;line-height:1.5">{note}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.caption("Training metrics for this run are on the Model Performance page.")
+# Remaining rows, one per photo: that photo's result from each model, side by side.
+for i, it in enumerate(items):
+    for run in runs:
+        if run["results"] is None:
+            cells.append("<div></div>")
+            continue
+        r = run["results"][i]
+        thumb_b64 = vh.b64_image(vh.draw_overlay(it["image"], r["persons"], show_boxes=True, show_labels=False), max_dim=360)
+        fc = vh.flag_confidence(r, required)
+        conf_label = f"{fc:.2f} conf" if fc is not None else "— conf"
+        cells.append(_flat(f"""
+            <div style="background:#FFFFFF;border:1px solid #C4C6C0;margin-bottom:10px" title="{it['name']}">
+              <img src="data:image/jpeg;base64,{thumb_b64}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"/>
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 8px">
+                {vh.verdict_badge(r["verdict"])}
+                <span class="hv-mono" style="font-size:10.5px;color:#4A4B47;white-space:nowrap">{conf_label}</span>
+              </div>
+            </div>
+        """))
 
-
-# 2×2 grid — two models per row, so each column stays wide enough for its
-# photo grid to read comfortably.
-for row_start in range(0, len(MODELS), 2):
-    row_cols = st.columns(2)
-    for col, m in zip(row_cols, MODELS[row_start:row_start + 2]):
-        if m["kind"] == "live":
-            render_live(col, m["key"], m["weights"], m["label"])
-        else:
-            render_no_person(col, m["label"], m["note"])
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-st.caption(
-    "Tiles aren't clickable yet — no detail view or drop box of its own on this page for now. "
-    "It's read-only against whatever's loaded on the Demo page."
+st.markdown(
+    f'<div style="display:grid;grid-template-columns:repeat({len(runs)},1fr);gap:0 16px">'
+    + "".join(cells) +
+    '</div>',
+    unsafe_allow_html=True,
 )
