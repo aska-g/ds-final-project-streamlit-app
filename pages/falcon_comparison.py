@@ -50,80 +50,107 @@ CANDIDATES = [APP_DIR / "falcon" / "outputs" / "comparison", APP_DIR / "falcon" 
 COMP_DIR = next((p for p in CANDIDATES if p.is_dir()), CANDIDATES[0])
 YOLO_DIR = APP_DIR / "falcon" / "outputs" / "yolov26spv"
 
-# ---- Explainer ----
+# ---- Top: two boxes — Falcon + YOLO, each with image as background ----
+_FALCON_BG = "https://cdn-uploads.huggingface.co/production/uploads/62fe441427c98b09b503a4e3/GvD4A4LXMXkaWmYOlDCRj.png"
+_YOLO_BG = "https://play-lh.googleusercontent.com/l6FTUmnhmusjPgNtJPSF1U1DvYCvwNgSt440oM64hqpc7ZvudhDAAg0ri3cF6IM6vSoR=s94-rw"
 st.markdown(
-    '<div class="hv-h1" style="font-size:28px;margin:6px 0 8px">What is Falcon Perception</div>',
-    unsafe_allow_html=True,
-)
-st.markdown(
-    """
-<div style="font-size:13.5px;color:#4A4B47;line-height:1.6;margin-bottom:14px">
-<b style="color:#141414">Falcon Perception</b> is a 0.6B-parameter Small Language Model (SLM) that exists in the gap
-between machine-learning models like YOLO and huge LLMs like Gemini, ChatGPT and Claude. It's somewhat more accurate
-than YOLO, and slightly bigger than YOLO. You input an object name like
-<span class="hv-mono" style="background:#FFFFFF;border:1px solid #C4C6C0;padding:1px 6px;font-size:12px">"construction helmet"</span>,
-and the model will draw a bounding box on top of your image.
+    f"""
+<style>
+.falcon-intro-grid {{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 10px;
+}}
+@media (max-width: 860px) {{
+  .falcon-intro-grid {{ grid-template-columns: 1fr; }}
+}}
+/* Left: Falcon — image as background, text on a readable overlay */
+.falcon-box {{
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #141414;
+  min-height: 360px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.88) 36%, rgba(255,255,255,0.96) 100%),
+    url('{_FALCON_BG}') center / cover no-repeat;
+}}
+.falcon-box-inner {{
+  position: relative;
+  z-index: 1;
+  padding: 16px 16px 14px;
+}}
+/* Right: YOLO — image as background with dark overlay for readability */
+.yolo-box {{
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #141414;
+  min-height: 360px;
+  background:
+    linear-gradient(180deg, rgba(20,20,20,0.82) 0%, rgba(20,20,20,0.88) 50%, rgba(20,20,20,0.92) 100%),
+    url('{_YOLO_BG}') center / cover no-repeat;
+  color: #FFFFFF;
+}}
+.yolo-box-inner {{
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+}}
+.yolo-box .yolo-body {{ font-size:12.8px; line-height:1.65; color:#E4E5E2; }}
+.yolo-box .yolo-body b {{ color:#FFFFFF; }}
+</style>
+<div class="falcon-intro-grid">
+  <!-- FALCON -->
+  <div class="falcon-box">
+    <div class="falcon-box-inner">
+      <div class="hv-mono" style="font-size:11px;letter-spacing:1.2px;color:#71736D;margin-bottom:6px">FALCON PERCEPTION</div>
+      <div class="hv-h1" style="font-size:18px;color:#141414;margin-bottom:8px">Falcon Perception</div>
+      <div style="font-size:12.8px;color:#141414;line-height:1.6;margin-bottom:12px">
+        A 0.6B-parameter Small Language Model (SLM) that lives in the gap between
+        machine-learning models like YOLO and huge LLMs like Gemini, ChatGPT and Claude.
+        It's somewhat more accurate than YOLO, and slightly bigger than YOLO. You input an
+        object name like <span class="hv-mono" style="background:#FFFFFF;border:1px solid #C4C6C0;padding:1px 5px;font-size:11.5px">"construction helmet"</span>,
+        and the model will draw a bounding box on top of your image.
+      </div>
+      <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#5FBC73;margin-bottom:4px">PROS</div>
+      <ul style="margin:0 0 10px 18px;padding:0;font-size:12.5px;color:#141414;line-height:1.6">
+        <li>Uses language — could describe anything</li>
+        <li>Pretty accurate</li>
+      </ul>
+      <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#EC5B4C;margin-bottom:4px">CONS</div>
+      <ul style="margin:0 0 0 18px;padding:0;font-size:12.5px;color:#141414;line-height:1.6">
+        <li>Language can be ambiguous, hard to detect negative classes</li>
+        <li>Can only detect one class per run / pass</li>
+        <li>Takes 3–10&nbsp;s to process per image</li>
+      </ul>
+    </div>
+  </div>
+  <!-- YOLO -->
+  <div class="yolo-box"><div class="yolo-box-inner">
+    <div class="hv-mono" style="font-size:11px;letter-spacing:1.2px;color:#9B9D97;margin-bottom:6px">YOLO</div>
+    <div class="hv-h1" style="font-size:18px;color:#FFFFFF;margin-bottom:8px">YOLO</div>
+    <div class="yolo-body" style="margin-bottom:12px">
+      YOLO is a small, fast object detector trained to find specific things it has seen before —
+      like helmets, vests, or people. You show it a photo and it draws boxes around what it recognizes.
+      It's quick and light, which makes it great for real-time use. The trade-off is it only knows
+      what it was trained on: if you want it to find something new, you need to collect examples
+      and train it again.
+    </div>
+    <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#EFE600;margin-bottom:4px">PROS</div>
+    <ul style="margin:0 0 10px 18px;padding:0;font-size:12.5px;color:#E4E5E2;line-height:1.6">
+      <li>Multi-class in one pass</li>
+      <li>Fast and light</li>
+      <li>Reliable on the things it was trained for</li>
+    </ul>
+    <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#9B9D97;margin-bottom:4px">CONS</div>
+    <ul style="margin:0 0 0 18px;padding:0;font-size:12.5px;color:#E4E5E2;line-height:1.6">
+      <li>Needs training data</li>
+      <li>Only knows classes it was trained on</li>
+    </ul>
+  </div></div>
 </div>
+<div class="hv-mono" style="font-size:11px;color:#71736D;margin-bottom:6px">All 10 images below are side-by-side renders from <span style="color:#141414">falcon/outputs/comparison</span> (fallback <span style="color:#141414">falcon/output/comparison</span>). Detections for the table are read from <span style="color:#141414">falcon/outputs/yolov26spv/&lt;image&gt;/detections.json</span>.</div>
 """,
-    unsafe_allow_html=True,
-)
-st.markdown(
-    '<div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:8px;margin-bottom:14px">'
-    '<img src="https://cdn-uploads.huggingface.co/production/uploads/62fe441427c98b09b503a4e3/GvD4A4LXMXkaWmYOlDCRj.png" '
-    'alt="Falcon Perception" style="width:100%;height:auto;display:block"/>'
-    "</div>",
-    unsafe_allow_html=True,
-)
-
-# Pros / Cons vs YOLO
-st.markdown('<div class="hv-h1" style="font-size:18px;margin:10px 0 10px">Falcon Perception vs YOLO</div>', unsafe_allow_html=True)
-c1, c2 = st.columns(2)
-with c1:
-    st.markdown(
-        """
-<div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:14px 16px">
-  <div class="hv-mono" style="font-size:11px;letter-spacing:1.2px;color:#71736D;margin-bottom:6px">FALCON PERCEPTION</div>
-  <div class="hv-h1" style="font-size:16px;margin-bottom:10px">Open-vocabulary, language-grounded</div>
-  <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#5FBC73;margin-bottom:4px">PROS</div>
-  <ul style="margin:0 0 10px 18px;padding:0;font-size:12.5px;color:#141414;line-height:1.6">
-    <li>Uses language — could describe anything</li>
-    <li>accurate</li>
-    <li>doesn't need training</li>
-  </ul>
-  <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#EC5B4C;margin-bottom:4px">CONS</div>
-  <ul style="margin:0 0 0 18px;padding:0;font-size:12.5px;color:#141414;line-height:1.6">
-    <li>Language can be ambiguous, hard to detect negative classes</li>
-    <li>Can only detect one class per run / pass</li>
-    <li>Takes 3–10&nbsp;s to process per image</li>
-  </ul>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-with c2:
-    st.markdown(
-        """
-<div style="background:#141414;color:#FFFFFF;padding:14px 16px;border:1px solid #141414">
-  <div class="hv-mono" style="font-size:11px;letter-spacing:1.2px;color:#9B9D97;margin-bottom:6px">YOLO (v8 / v26)</div>
-  <div class="hv-h1" style="font-size:16px;margin-bottom:10px;color:#FFFFFF">Closed-set, single-shot detector</div>
-  <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#EFE600;margin-bottom:4px">PROS</div>
-  <ul style="margin:0 0 10px 18px;padding:0;font-size:12.5px;color:#E4E5E2;line-height:1.6">
-    <li>Multi-class in one pass</li>
-    <li>Box-only, fast and lean</li>
-    <li>Strong on the trained vocabulary</li>
-  </ul>
-  <div class="hv-mono" style="font-size:10.5px;letter-spacing:.8px;color:#9B9D97;margin-bottom:4px">CONS</div>
-  <ul style="margin:0 0 0 18px;padding:0;font-size:12.5px;color:#E4E5E2;line-height:1.6">
-    <li>needs training and data<li>
-    <li>only knows classes its trained on</li>
-  </ul>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-st.markdown(
-    '<div class="hv-mono" style="font-size:11px;color:#71736D;margin-top:8px">All 10 images below are side-by-side renders from <span style="color:#141414">falcon/outputs/comparison</span> (fallback <span style="color:#141414">falcon/output/comparison</span>). Detections for the table are read from <span style="color:#141414">falcon/outputs/yolov26spv/&lt;image&gt;/detections.json</span>.</div>',
     unsafe_allow_html=True,
 )
 st.markdown("<hr style='margin:18px 0'/>", unsafe_allow_html=True)
@@ -230,49 +257,143 @@ except Exception:
 
 st.markdown("<hr style='margin:18px 0'/>", unsafe_allow_html=True)
 
-# ---- Detection table ----
-st.markdown('<div class="hv-h1" style="font-size:18px;margin-bottom:4px">Detection results</div>', unsafe_allow_html=True)
+# ---- Detection table — simple counts per class per model ----
+st.markdown('<div class="hv-h1" style="font-size:18px;margin-bottom:4px">Detections per class</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div style="font-size:12px;color:#71736D;margin-bottom:10px">YOLO detections for the selected image from <span class="hv-mono" style="font-size:11px;color:#141414">yolov26spv/&lt;image&gt;/detections.json</span> '
-    "(conf 0–1, box x0 y0 x1 y1 normalized). Falcon side is visual — same image rendered side-by-side above.",
+    '<div style="font-size:12px;color:#71736D;margin-bottom:10px">How many boxes each model found in each class for the selected image. '
+    "GT = ground-truth labels (when available) · YOLO = <span class=\"hv-mono\" style=\"font-size:11px;color:#141414\">yolov26spv/detections.json</span> · "
+    "Falcon = <span class=\"hv-mono\" style=\"font-size:11px;color:#141414\">chosen-pics-5cls/predictions_yolo.txt</span>.</div>",
     unsafe_allow_html=True,
 )
 
-stem = Path(selected).stem  # 000037_jpg.rf.xxx without .jpg? Actually Path stem drops .jpg only, keeps _jpg.rf... -> matches folder
-# The folder names are stem without trailing .jpg extension, which is exactly Path.stem
-dets = load_detections(stem)
+CLASS_ORDER = ["person", "helmet", "gloves", "boots", "vest"]
+CLASS_ID_TO_NAME = {0: "person", 1: "helmet", 2: "gloves", 3: "boots", 4: "vest"}
 
-if not dets:
-    st.info(f"No structured detections found for `{stem}` — gallery still shows the side-by-side render, but the table is empty for this image.")
+# normalize YOLO label strings to the 5 canonical names
+_YOLO_LABEL_MAP = {
+    "person": "person",
+    "helmet": "helmet",
+    "hardhat": "helmet",
+    "vest": "vest",
+    "safety vest": "vest",
+    "safety_vest": "vest",
+    "gloves": "gloves",
+    "boots": "boots",
+}
+
+
+@st.cache_data(show_spinner=False)
+def _falcon_counts_for(stem: str) -> dict:
+    p = APP_DIR / "falcon" / "outputs" / "chosen-pics-5cls" / stem / "predictions_yolo.txt"
+    if not p.exists():
+        # also try without the stem subfolder (flat file)
+        alt = APP_DIR / "falcon" / "outputs" / "chosen-pics-5cls" / f"{stem}.txt"
+        if alt.exists():
+            p = alt
+        else:
+            return {}
+    counts: dict[str, int] = {}
+    for line in p.read_text().splitlines():
+        parts = line.strip().split()
+        if not parts:
+            continue
+        try:
+            cid = int(float(parts[0]))
+        except Exception:
+            continue
+        name = CLASS_ID_TO_NAME.get(cid)
+        if name:
+            counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+@st.cache_data(show_spinner=False)
+def _yolo_counts_for(stem: str) -> dict:
+    # prefer structured detections.json
+    j = APP_DIR / "falcon" / "outputs" / "yolov26spv" / stem / "detections.json"
+    if j.exists():
+        try:
+            data = json.loads(j.read_text())
+            if isinstance(data, dict) and "detections" in data:
+                data = data["detections"]
+            counts: dict[str, int] = {}
+            for d in data if isinstance(data, list) else []:
+                raw = str(d.get("label") or d.get("key") or "").strip().lower()
+                name = _YOLO_LABEL_MAP.get(raw, raw)
+                if name in CLASS_ORDER:
+                    counts[name] = counts.get(name, 0) + 1
+            return counts
+        except Exception:
+            pass
+    # fallback to predictions_yolo.txt
+    t = APP_DIR / "falcon" / "outputs" / "yolov26spv" / stem / "predictions_yolo.txt"
+    if t.exists():
+        counts = {}
+        for line in t.read_text().splitlines():
+            parts = line.strip().split()
+            if not parts:
+                continue
+            try:
+                cid = int(float(parts[0]))
+            except Exception:
+                continue
+            name = CLASS_ID_TO_NAME.get(cid)
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+        return counts
+    return {}
+
+
+@st.cache_data(show_spinner=False)
+def _gt_counts_for(stem: str) -> dict | None:
+    # GT for the chosen-pics comparison set is not shipped in this repo
+    # (data/merged is git-ignored). Try a few plausible locations; return None if missing.
+    candidates = [
+        APP_DIR / "falcon" / "outputs" / "chosen-pics-5cls" / stem / "gt.txt",
+        APP_DIR / "data" / "merged" / "train" / "labels" / f"{stem}.txt",
+        APP_DIR / "falcon" / "outputs" / "gt" / f"{stem}.txt",
+    ]
+    for p in candidates:
+        if p.exists():
+            counts: dict[str, int] = {}
+            for line in p.read_text().splitlines():
+                parts = line.strip().split()
+                if not parts:
+                    continue
+                try:
+                    cid = int(float(parts[0]))
+                except Exception:
+                    continue
+                name = CLASS_ID_TO_NAME.get(cid)
+                if name:
+                    counts[name] = counts.get(name, 0) + 1
+            return counts
+    return None
+
+
+stem = Path(selected).stem
+yolo_c = _yolo_counts_for(stem)
+falcon_c = _falcon_counts_for(stem)
+gt_c = _gt_counts_for(stem)
+
+rows = []
+for cls in CLASS_ORDER:
+    gt_v = gt_c.get(cls, 0) if gt_c is not None else "—"
+    rows.append({"Class": cls, "GT": gt_v, "YOLO": yolo_c.get(cls, 0), "Falcon": falcon_c.get(cls, 0)})
+
+count_df = pd.DataFrame(rows)
+
+# Totals row
+tot_gt = sum(v for v in [gt_c.get(k, 0) for k in CLASS_ORDER] if gt_c is not None) if gt_c is not None else "—"
+tot_yolo = sum(yolo_c.get(k, 0) for k in CLASS_ORDER)
+tot_falcon = sum(falcon_c.get(k, 0) for k in CLASS_ORDER)
+count_df.loc[len(count_df)] = ["Total", tot_gt, tot_yolo, tot_falcon]
+
+st.dataframe(count_df, width="stretch", hide_index=True)
+
+if gt_c is None:
+    st.caption("GT not available for this curated 10-image comparison set (no published labels in the repo) — showing YOLO vs Falcon counts only. Add a per-image `gt.txt` to enable the GT column.")
 else:
-    df = pd.DataFrame(dets)
-    # normalize columns for display
-    # expected keys: label/canonical label, conf, box, canon_id, key
-    if "label" not in df.columns and "key" in df.columns:
-        df["label"] = df["key"]
-    if "conf" not in df.columns:
-        df["conf"] = None
-    # box formatting
-    if "box" in df.columns:
-        df["box"] = df["box"].apply(lambda b: f"[{', '.join(f'{x:.3f}' for x in b)}]" if isinstance(b, (list, tuple)) else str(b))
-    # counts per class
-    counts = df["label"].value_counts().rename_axis("class").reset_index(name="count") if "label" in df.columns else pd.DataFrame()
-    c_left, c_right = st.columns([2, 1])
-    with c_left:
-        show_cols = [c for c in ["label", "key", "canon_id", "conf", "box"] if c in df.columns]
-        # round conf
-        if "conf" in df.columns:
-            df["conf"] = df["conf"].apply(lambda x: round(float(x), 3) if isinstance(x, (int, float)) else x)
-        st.dataframe(df[show_cols] if show_cols else df, width="stretch", hide_index=True)
-    with c_right:
-        if not counts.empty:
-            st.markdown('<div class="hv-mono" style="font-size:11px;letter-spacing:1px;color:#71736D;margin-bottom:6px">COUNT BY CLASS</div>', unsafe_allow_html=True)
-            st.dataframe(counts, width="stretch", hide_index=True)
-        st.markdown(
-            '<div style="background:#EFE600;border:1px solid #141414;padding:8px 10px;margin-top:8px;font-size:11px;color:#141414">'
-            '<span class="hv-mono" style="letter-spacing:.5px">NOTE</span> · Falcon visual is the left/right render above; numeric rows here are the YOLO side that remains machine-readable.'
-            "</div>",
-            unsafe_allow_html=True,
-        )
+    st.caption("Counts are boxes per class for the selected image. GT from labels, YOLO from detections.json, Falcon from predictions_yolo.txt.")
 
-st.caption("Gallery reads directly from falcon/outputs/comparison (fallback falcon/output/comparison); table reads yolov26spv/detections.json per image. Add new comparisons by dropping JPGs into that folder — they appear on next reload (clear cache if needed).")
+st.caption("Gallery reads from falcon/outputs/comparison (fallback falcon/output/comparison). Add new comparisons by dropping JPGs into that folder — they appear on next reload (clear cache if needed).")
