@@ -357,7 +357,7 @@ if st.session_state.view == "results":
                 unsafe_allow_html=True)
 
     with st.container(border=True):
-        st.markdown('<div class="hv-h1" style="font-size:16px">WHAT COUNTS AS COMPLIANT</div>', unsafe_allow_html=True)
+        st.markdown('<div class="hv-h1" style="font-size:16px">REQUIRED PPE</div>', unsafe_allow_html=True)
         rc1, rc2, rc3, rc4, rc5 = st.columns(5)
         with rc1:
             st.checkbox("Hardhat required", value=True, key="require_hardhat")
@@ -369,13 +369,7 @@ if st.session_state.view == "results":
             st.checkbox("Gloves required", value=True, key="require_gloves")
         with rc5:
             st.checkbox("Boots required", value=True, key="require_boots")
-        st.markdown(
-            '<div style="font-size:12.5px;color:#4A4B47;margin-top:6px">Uncheck an item to stop flagging it. '
-            'Mask uses the css-data vocabulary (detected by v8 / yolo26s_css_100e). Gloves/boots are only '
-            'detected by yolo26s_merged_100e. On any other model, requiring an item it never detects has no '
-            'effect — that box is simply never found.</div>',
-            unsafe_allow_html=True,
-        )
+
 
     st.markdown('<div class="hv-h1" style="font-size:24px;margin-top:24px">RESULTS</div>', unsafe_allow_html=True)
     if gemini_caption.last_error:
@@ -518,43 +512,58 @@ else:
             height=0,
         )
 
-    top1, top2, top3 = st.columns([1, 4, 2])
-    with top1:
-        if st.button("← RESULTS"):
-            go(view="results")
-    with top2:
-        st.markdown('<div>{vh.verdict_badge(a["verdict"])}</div>',
-                     unsafe_allow_html=True)
-    with top3:
-        n1, n2, n3 = st.columns(3)
-        if n1.button("◀ PREV"):
-            go(view="detail", detail_key=items[(idx - 1) % len(items)]["key"], selected_person=None)
-        if n2.button("NEXT ▶"):
-            go(view="detail", detail_key=items[(idx + 1) % len(items)]["key"], selected_person=None)
-        if n3.button("⚠ NEXT EXC."):
-            found = next((items[(idx + k) % len(items)] for k in range(1, len(items) + 1)
-                          if items[(idx + k) % len(items)]["assessment"]["verdict"] == "non"), None)
-            if found:
-                go(view="detail", detail_key=found["key"], selected_person=None)
-            else:
-                st.toast("No exceptions in the current batch.")
+    # Scoped container (see the ".st-key-detail_topbar" CSS in
+    # view_helpers.HV_STYLE_CSS) so the RESULTS / verdict badge / PREV·NEXT·
+    # NEXT EXC. row gets its own smaller, vertically-centered button
+    # styling without affecting buttons anywhere else in the app.
+    with st.container(key="detail_topbar"):
+        top1, top2, top3 = st.columns([1, 4, 2])
+        with top1:
+            if st.button("← RESULTS"):
+                go(view="results")
+        with top2:
+            st.markdown(f'<div>{vh.verdict_badge(a["verdict"])}</div>',
+                         unsafe_allow_html=True)
+        with top3:
+            n1, n2, n3 = st.columns(3)
+            if n1.button("◀ PREV"):
+                go(view="detail", detail_key=items[(idx - 1) % len(items)]["key"], selected_person=None)
+            if n2.button("NEXT ▶"):
+                go(view="detail", detail_key=items[(idx + 1) % len(items)]["key"], selected_person=None)
+            if n3.button("⚠ NEXT EXC."):
+                found = next((items[(idx + k) % len(items)] for k in range(1, len(items) + 1)
+                              if items[(idx + k) % len(items)]["assessment"]["verdict"] == "non"), None)
+                if found:
+                    go(view="detail", detail_key=found["key"], selected_person=None)
+                else:
+                    st.toast("No exceptions in the current batch.")
 
     left, right = st.columns([3, 2])
     with left:
         edit_key = f"editmode_{it['key']}"
         st.session_state.setdefault(edit_key, False)
-        ec1, ec2 = st.columns([3, 2])
-        with ec1:
-            st.session_state[edit_key] = st.toggle(
-                "✎ Correct labels for this photo", value=st.session_state[edit_key], key=f"toggle_{it['key']}")
-        with ec2:
-            if it.get("corrected"):
-                st.markdown('<div style="text-align:right;padding-top:6px">'
-                             '<span class="hv-mono" style="font-size:11px;background:#141414;color:#EFE600;'
-                             'padding:3px 9px">✓ CORRECTION SAVED</span></div>', unsafe_allow_html=True)
+        # Scoped container (see ".st-key-detail_controls" in
+        # view_helpers.HV_STYLE_CSS). Toggle and checkbox used to be on
+        # separate stacked lines -- since the switch (32px) and the
+        # checkbox (16px) are different widths, their two labels started at
+        # different x offsets, reading as a ragged, "not aligned" left
+        # edge. Putting both on one row sidesteps that entirely instead of
+        # trying to force-match native widget internals.
+        with st.container(key="detail_controls"):
+            ec1, ec2, ec3 = st.columns([5, 3, 3])
+            with ec1:
+                st.session_state[edit_key] = st.toggle(
+                    "✎ Correct labels for this photo", value=st.session_state[edit_key], key=f"toggle_{it['key']}")
+            with ec2:
+                if not st.session_state[edit_key]:
+                    st.session_state.show_boxes = st.checkbox("Show detection boxes", value=st.session_state.show_boxes)
+            with ec3:
+                if it.get("corrected"):
+                    st.markdown('<div style="text-align:right;padding-top:6px">'
+                                 '<span class="hv-mono" style="font-size:11px;background:#141414;color:#EFE600;'
+                                 'padding:3px 9px">✓ CORRECTION SAVED</span></div>', unsafe_allow_html=True)
 
         if not st.session_state[edit_key]:
-            st.session_state.show_boxes = st.checkbox("Show detection boxes", value=st.session_state.show_boxes)
             big = vh.draw_overlay(it["image"], a["persons"], selected_idx=st.session_state.selected_person,
                                    show_boxes=st.session_state.show_boxes, detail=True)
             b64 = vh.b64_image(big, max_dim=1400, quality=90)
@@ -569,15 +578,23 @@ else:
 
             if a["persons"]:
                 st.caption("Isolate:")
-                pc = st.columns(len(a["persons"]) + 1)
-                if pc[0].button("All persons", type="primary" if st.session_state.selected_person is None else "secondary"):
-                    st.session_state.selected_person = None
-                    st.rerun()
-                for pi in range(len(a["persons"])):
-                    if pc[pi + 1].button(f"Person {pi + 1}",
-                                          type="primary" if st.session_state.selected_person == pi else "secondary"):
-                        st.session_state.selected_person = pi
+                # Scoped container (see ".st-key-isolate_buttons" in
+                # view_helpers.HV_STYLE_CSS) -- st.columns always lays out
+                # in a single row of N equal-width slots, so on a
+                # busy photo (8-9+ people) each button got squeezed
+                # narrower than its own label, wrapping "Person N" onto two
+                # lines. The CSS makes each button size to its own content
+                # and wrap onto a new row instead of shrinking.
+                with st.container(key="isolate_buttons"):
+                    pc = st.columns(len(a["persons"]) + 1)
+                    if pc[0].button("All persons", type="primary" if st.session_state.selected_person is None else "secondary"):
+                        st.session_state.selected_person = None
                         st.rerun()
+                    for pi in range(len(a["persons"])):
+                        if pc[pi + 1].button(f"Person {pi + 1}",
+                                              type="primary" if st.session_state.selected_person == pi else "secondary"):
+                            st.session_state.selected_person = pi
+                            st.rerun()
         else:
             ah.render_editor(it, it["ai_assessment"], threshold)
 

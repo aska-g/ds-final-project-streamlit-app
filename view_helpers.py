@@ -307,6 +307,71 @@ hr { border-color:#C4C6C0; }
 .st-key-tl_chart1_card, .st-key-tl_chart2_card {
     background:#FFFFFF !important; border:none !important; border-radius:0 !important;
 }
+/* Photo-detail top bar (← RESULTS / verdict badge / PREV·NEXT·NEXT EXC.) --
+   smaller, tighter buttons than the app-wide default so three of them plus
+   a label fit comfortably on one row, vertically centered against the
+   verdict badge next to them, and "⚠ NEXT EXC." never wraps to a second
+   line in its narrow column.
+   Centering needs two rules, not one: `align-items:center` on the row only
+   sets the *default* cross-axis alignment for its column children, and
+   Streamlit's own CSS pins every stColumn to `align-self:stretch` with a
+   selector at least as specific -- so each column still stretches to the
+   full row height and its content (block-laid-out, top-anchored) stayed
+   pinned to the top regardless. Overriding align-self directly on
+   stColumn is what actually stops the stretch and lets each column (and
+   the badge/buttons inside it) size to its own content and center. */
+.st-key-detail_topbar [data-testid="stHorizontalBlock"] {
+    align-items:center !important; gap:0.5rem !important;
+}
+.st-key-detail_topbar [data-testid="stColumn"] {
+    align-self:center !important;
+}
+/* The real culprit behind the residual ~7-9px vertical offset (confirmed
+   by direct DOM measurement): Streamlit's own stMarkdownContainer carries
+   `margin-bottom:-16px` (there to cancel a <p>'s default spacing) which
+   isn't canceling anything here -- our badge is a raw <span>, not a <p> --
+   so it just silently shrinks the column's measured height below what the
+   badge actually renders at, throwing off every centering calculation
+   upstream of it. Zeroing it out is what actually fixes the alignment. */
+.st-key-detail_topbar [data-testid="stMarkdownContainer"] {
+    margin-bottom:0 !important;
+}
+.st-key-detail_topbar [data-testid="stBaseButton-secondary"] {
+    padding:3px 10px !important; font-size:12px !important; min-height:0 !important;
+}
+.st-key-detail_topbar [data-testid="stBaseButton-secondary"] p {
+    font-size:12px !important; white-space:nowrap !important;
+}
+/* Photo-detail controls row (toggle / checkbox / correction-saved badge) --
+   same align-self override as the topbar above, so all three sit on one
+   row instead of stacking on separate lines with raggedly-offset labels
+   (the switch is 32px wide, the checkbox 16px, so their text used to start
+   at two different x positions when stacked). */
+.st-key-detail_controls [data-testid="stHorizontalBlock"] {
+    align-items:center !important;
+}
+.st-key-detail_controls [data-testid="stColumn"] {
+    align-self:center !important;
+}
+.st-key-detail_controls [data-testid="stMarkdownContainer"] {
+    margin-bottom:0 !important;
+}
+/* Isolate: [All persons] [Person 1] [Person 2] ... -- st.columns always
+   lays out N equal-width slots on a single row, so on a busy photo each
+   button got squeezed narrower than its own label and wrapped onto two
+   lines ("Perso" / "n 1"). Letting the row wrap and each column shrink to
+   its own content width instead keeps every button's label on one line,
+   spilling extra buttons onto additional rows as needed. */
+.st-key-isolate_buttons [data-testid="stHorizontalBlock"] {
+    flex-wrap:wrap !important; gap:8px !important;
+}
+.st-key-isolate_buttons [data-testid="stColumn"] {
+    flex:0 0 auto !important; width:auto !important; min-width:0 !important;
+}
+.st-key-isolate_buttons [data-testid="stBaseButton-secondary"] p,
+.st-key-isolate_buttons [data-testid="stBaseButton-primary"] p {
+    white-space:nowrap !important;
+}
 
 </style>
 """
