@@ -25,6 +25,7 @@ _PAGES = [
     ("presentation", "Presentation"),
     ("writeup", "Write Up"),
     ("demo", "Demo"),
+    ("video", "Live Video"),
     ("model_compare", "Model Comparison"),
     ("model_performance", "Model Performance"),
 ]
