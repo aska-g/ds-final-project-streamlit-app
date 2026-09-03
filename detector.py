@@ -111,6 +111,20 @@ CSS_M_150E_LABEL = "YOLO26m · yolo26m_css_150e-2"
 CSS_M_300E_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26m_css_300e" / "weights" / "best.pt"
 CSS_M_300E_LABEL = "YOLO26m · yolo26m_css_300e"
 
+# yolo26s_supervisorv1_fixed_nomosaic_300e — first run on a brand-new dataset
+# ("SuperVisor.v1"), not a rerun of anything above. Its big draw: all five tracked PPE
+# slots (hardhat, vest, mask, gloves, boots) plus Person in ONE label set, unlike every
+# other dataset here which is missing at least one slot (merged has no mask; css-data has
+# no gloves/boots). Requested epochs=300/patience=25, mosaic augmentation disabled
+# ("nomosaic"), but early-stopped very early -- only 71/300 epochs -- with aggregate
+# metrics far below the current default (precision 61,8% vs 91,5%, recall 47,4% vs 84,6%,
+# mAP50 47,5% vs 89,0%, mAP50-95 20,1% vs 59,1% for yolo26m_merged_150ev2). Read this as an
+# early, still-rough first attempt at the new dataset, not yet a competitive replacement --
+# not wired in as any page's default. Sibling runs on the same dataset (yolo26m_supervisorv1_*,
+# _v2_300e, _v3_300e) exist in P0-safety too but weren't asked for here.
+SUPERVISOR_V1_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26s_supervisorv1_fixed_nomosaic_300e" / "weights" / "best.pt"
+SUPERVISOR_V1_LABEL = "YOLO26s · yolo26s_supervisorv1_fixed_nomosaic_300e"
+
 DEFAULT_WEIGHTS = MERGED_M_V2_WEIGHTS
 DEFAULT_LABEL = MERGED_M_V2_LABEL
 

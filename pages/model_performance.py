@@ -121,6 +121,24 @@ RUN_INFO = {
         "compare_label": "merged-m-v2",
         "live_on_compare": True,
     },
+    "yolo26s_supervisorv1_fixed_nomosaic_300e": {
+        "label": "YOLO26s — SuperVisor.v1, 300 epochs (nomosaic)",
+        "path": "detect/yolo26s_supervisorv1_fixed_nomosaic_300e",
+        "caption": (
+            "First run on a brand-new dataset — not a rerun of anything above. Its big "
+            "draw: all five tracked PPE slots (hardhat, vest, mask, gloves, boots) plus "
+            "Person in ONE label set, unlike every other dataset here, which is each "
+            "missing at least one slot. Requested 300 epochs (patience=25) with mosaic "
+            "augmentation disabled, but early-stopped very early — only 71/300 epochs — "
+            "with aggregate metrics far below yolo26m_merged_150ev2 above (precision "
+            "61,8% vs 91,5%, recall 47,4% vs 84,6%, mAP50 47,5% vs 89,0%, mAP50-95 20,1% "
+            "vs 59,1%). Shown on Model Comparison as \"supervisorv1\", placed right next "
+            "to \"merged-m-v2\" — read this as an early, still-rough first attempt at the "
+            "new dataset, not yet a competitive replacement."
+        ),
+        "compare_label": "supervisorv1",
+        "live_on_compare": True,
+    },
     "yolo26m_mergedpeople_150e": {
         "label": "YOLO26m — merged + pseudo-labeled Person, 150 epochs",
         "path": "detect/yolo26m_mergedpeople_150e",
@@ -314,17 +332,17 @@ if compare_rows:
     # its own terms rather than comparing raw numbers across columns as if it were one dataset.
     st.subheader("Per-class numbers")
     PER_CLASS = [
-        {"Slot": "Person",                    "v8": "0.80", "v26": "0.83", "css-m-150": "0.90", "css-m-300": "0.89", "merged": "0.83", "merged-m": "0.86", "merged-m-v2": "0.83", "mergedpeople": "0.88", "Altec": "—"},
-        {"Slot": "Head protection — present",  "v8": "0.76", "v26": "0.85", "css-m-150": "0.89", "css-m-300": "0.86", "merged": "0.94", "merged-m": "0.95", "merged-m-v2": "0.95", "mergedpeople": "0.95", "Altec": "0.89 / 0.78"},
-        {"Slot": "Head protection — absent",   "v8": "0.62", "v26": "0.67", "css-m-150": "0.77", "css-m-300": "0.83", "merged": "0.88", "merged-m": "0.90", "merged-m-v2": "0.89", "mergedpeople": "0.88", "Altec": "—"},
-        {"Slot": "Vest — present",             "v8": "0.78", "v26": "0.90", "css-m-150": "0.93", "css-m-300": "0.93", "merged": "0.76", "merged-m": "0.81", "merged-m-v2": "0.83", "mergedpeople": "0.81", "Altec": "0.70"},
-        {"Slot": "Vest — absent",              "v8": "0.70", "v26": "0.74", "css-m-150": "0.77", "css-m-300": "0.84", "merged": "0.78", "merged-m": "0.81", "merged-m-v2": "0.80", "mergedpeople": "0.82", "Altec": "—"},
-        {"Slot": "Mask — present",             "v8": "0.90", "v26": "0.95", "css-m-150": "0.95", "css-m-300": "0.95", "merged": "—",    "merged-m": "—",    "merged-m-v2": "—",    "mergedpeople": "—",    "Altec": "0.83 / 0.70"},
-        {"Slot": "Mask — absent",              "v8": "0.66", "v26": "0.70", "css-m-150": "0.82", "css-m-300": "0.88", "merged": "—",    "merged-m": "—",    "merged-m-v2": "—",    "mergedpeople": "—",    "Altec": "—"},
-        {"Slot": "Gloves — present",           "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.86", "merged-m": "0.88", "merged-m-v2": "0.87", "mergedpeople": "0.88", "Altec": "0.56"},
-        {"Slot": "Gloves — absent",            "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.83", "merged-m": "0.83", "merged-m-v2": "0.82", "mergedpeople": "0.82", "Altec": "—"},
-        {"Slot": "Boots — present",            "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.90", "merged-m": "0.91", "merged-m-v2": "0.92", "mergedpeople": "0.91", "Altec": "0.73"},
-        {"Slot": "Boots — absent",             "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.86", "merged-m": "0.89", "merged-m-v2": "0.88", "mergedpeople": "0.89", "Altec": "—"},
+        {"Slot": "Person",                    "v8": "0.80", "v26": "0.83", "css-m-150": "0.90", "css-m-300": "0.89", "merged": "0.83", "merged-m": "0.86", "merged-m-v2": "0.83", "supervisorv1": "0.74", "mergedpeople": "0.88", "Altec": "—"},
+        {"Slot": "Head protection — present",  "v8": "0.76", "v26": "0.85", "css-m-150": "0.89", "css-m-300": "0.86", "merged": "0.94", "merged-m": "0.95", "merged-m-v2": "0.95", "supervisorv1": "0.72", "mergedpeople": "0.95", "Altec": "0.89 / 0.78"},
+        {"Slot": "Head protection — absent",   "v8": "0.62", "v26": "0.67", "css-m-150": "0.77", "css-m-300": "0.83", "merged": "0.88", "merged-m": "0.90", "merged-m-v2": "0.89", "supervisorv1": "0.78", "mergedpeople": "0.88", "Altec": "—"},
+        {"Slot": "Vest — present",             "v8": "0.78", "v26": "0.90", "css-m-150": "0.93", "css-m-300": "0.93", "merged": "0.76", "merged-m": "0.81", "merged-m-v2": "0.83", "supervisorv1": "0.55", "mergedpeople": "0.81", "Altec": "0.70"},
+        {"Slot": "Vest — absent",              "v8": "0.70", "v26": "0.74", "css-m-150": "0.77", "css-m-300": "0.84", "merged": "0.78", "merged-m": "0.81", "merged-m-v2": "0.80", "supervisorv1": "0.56", "mergedpeople": "0.82", "Altec": "—"},
+        {"Slot": "Mask — present",             "v8": "0.90", "v26": "0.95", "css-m-150": "0.95", "css-m-300": "0.95", "merged": "—",    "merged-m": "—",    "merged-m-v2": "—",    "supervisorv1": "0.46", "mergedpeople": "—",    "Altec": "0.83 / 0.70"},
+        {"Slot": "Mask — absent",              "v8": "0.66", "v26": "0.70", "css-m-150": "0.82", "css-m-300": "0.88", "merged": "—",    "merged-m": "—",    "merged-m-v2": "—",    "supervisorv1": "0.43", "mergedpeople": "—",    "Altec": "—"},
+        {"Slot": "Gloves — present",           "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.86", "merged-m": "0.88", "merged-m-v2": "0.87", "supervisorv1": "0.27", "mergedpeople": "0.88", "Altec": "0.56"},
+        {"Slot": "Gloves — absent",            "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.83", "merged-m": "0.83", "merged-m-v2": "0.82", "supervisorv1": "0.35", "mergedpeople": "0.82", "Altec": "—"},
+        {"Slot": "Boots — present",            "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.90", "merged-m": "0.91", "merged-m-v2": "0.92", "supervisorv1": "0.14", "mergedpeople": "0.91", "Altec": "0.73"},
+        {"Slot": "Boots — absent",             "v8": "—",    "v26": "—",    "css-m-150": "—",    "css-m-300": "—",    "merged": "0.86", "merged-m": "0.89", "merged-m-v2": "0.88", "supervisorv1": "0.15", "mergedpeople": "0.89", "Altec": "—"},
     ]
     per_class_df = pd.DataFrame(PER_CLASS)
     for mid, per_cls in llm_per_class.items():
