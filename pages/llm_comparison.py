@@ -261,86 +261,129 @@ st.markdown("<hr style='margin:18px 0'/>", unsafe_allow_html=True)
 st.markdown('<div class="hv-h1" style="font-size:18px;margin-bottom:4px">Detections per class</div>', unsafe_allow_html=True)
 st.markdown(
     '<div style="font-size:12px;color:#71736D;margin-bottom:10px">How many boxes each model found in each class for the selected image. '
-    "GT = ground-truth labels (when available) · YOLO = <span class=\"hv-mono\" style=\"font-size:11px;color:#141414\">yolov26spv/detections.json</span> · "
-    "Falcon = <span class=\"hv-mono\" style=\"font-size:11px;color:#141414\">chosen-pics-5cls/predictions_yolo.txt</span>.</div>",
+    "YOLO = <span class=\"hv-mono\" style=\"font-size:11px;color:#141414\">yolov26spv/*.json</span> · "
+    "Falcon = <span class=\"hv-mono\" style=\"font-size:11px;color:#141414\">falcon/*.json</span> · "
+    "Gemini = <span class=\"hv-mono\" style=\"font-size:11px;color:#141414\">gemini/*.json</span> (9-class: person/helmet/gloves/boots/vest + no hardhat/no safety vest/no gloves/no boots).</div>",
     unsafe_allow_html=True,
 )
 
-CLASS_ORDER = ["person", "helmet", "gloves", "boots", "vest"]
-CLASS_ID_TO_NAME = {0: "person", 1: "helmet", 2: "gloves", 3: "boots", 4: "vest"}
+# 9-class order: 5 positives + 4 negatives (no hardhat/no safety vest/no gloves/no boots)
+CLASS_ORDER = ["person", "helmet", "gloves", "boots", "vest", "no hardhat", "no safety vest", "no gloves", "no boots"]
+# For legacy YOLO txt (0-4) and Gemini/Falcon json key mapping
+CLASS_ID_TO_NAME = {0: "person", 1: "helmet", 2: "gloves", 3: "boots", 4: "vest", 5: "no hardhat", 6: "no safety vest", 7: "no gloves", 8: "no boots"}
 
-# normalize YOLO label strings to the 5 canonical names
-_YOLO_LABEL_MAP = {
+# normalize label strings to the 9 canonical names (covers YOLO/Falcon/Gemini gemini keys)
+_LABEL_MAP = {
     "person": "person",
     "helmet": "helmet",
     "hardhat": "helmet",
+    "no-helmet": "no hardhat",
+    "no hardhat": "no hardhat",
+    "no-hardhat": "no hardhat",
     "vest": "vest",
     "safety vest": "vest",
     "safety_vest": "vest",
+    "no-vest": "no safety vest",
+    "no safety vest": "no safety vest",
+    "no-safety vest": "no safety vest",
+    "novest": "no safety vest",
     "gloves": "gloves",
+    "no-gloves": "no gloves",
+    "no gloves": "no gloves",
+    "nogloves": "no gloves",
     "boots": "boots",
+    "no-boots": "no boots",
+    "no boots": "no boots",
+    "noboots": "no boots",
+    "no-mask": "no hardhat",  # gemini uses NO-Mask as proxy for missing PPE; map to no hardhat for display
+    "nomask": "no hardhat",
 }
+_YOLO_LABEL_MAP = _LABEL_MAP
+_FALCON_LABEL_MAP = _LABEL_MAP
+_GEMINI_LABEL_MAP = _LABEL_MAP
 
 
 @st.cache_data(show_spinner=False)
 def _falcon_counts_for(stem: str) -> dict:
-    p = APP_DIR / "falcon" / "outputs" / "chosen-pics-5cls" / stem / "predictions_yolo.txt"
-    if not p.exists():
-        # also try without the stem subfolder (flat file)
-        alt = APP_DIR / "falcon" / "outputs" / "chosen-pics-5cls" / f"{stem}.txt"
-        if alt.exists():
-            p = alt
-        else:
-            return {}
-    counts: dict[str, int] = {}
-    for line in p.read_text().splitlines():
-        parts = line.strip().split()
-        if not parts:
-            continue
+    # new 9-class: falcon/outputs/falcon/<stem>.json (flat, key/conf/box)
+    jp = APP_DIR / "falcon" / "outputs" / "falcon" / f"{stem}.json"
+    if jp.exists():
         try:
-            cid = int(float(parts[0]))
-        except Exception:
-            continue
-        name = CLASS_ID_TO_NAME.get(cid)
-        if name:
-            counts[name] = counts.get(name, 0) + 1
-    return counts
-
-
-@st.cache_data(show_spinner=False)
-def _yolo_counts_for(stem: str) -> dict:
-    # prefer structured detections.json
-    j = APP_DIR / "falcon" / "outputs" / "yolov26spv" / stem / "detections.json"
-    if j.exists():
-        try:
-            data = json.loads(j.read_text())
+            data = json.loads(jp.read_text())
             if isinstance(data, dict) and "detections" in data:
                 data = data["detections"]
             counts: dict[str, int] = {}
             for d in data if isinstance(data, list) else []:
-                raw = str(d.get("label") or d.get("key") or "").strip().lower()
-                name = _YOLO_LABEL_MAP.get(raw, raw)
+                raw = str(d.get("key") or d.get("label") or "").strip().lower()
+                name = _FALCON_LABEL_MAP.get(raw, raw)
                 if name in CLASS_ORDER:
                     counts[name] = counts.get(name, 0) + 1
             return counts
         except Exception:
             pass
-    # fallback to predictions_yolo.txt
-    t = APP_DIR / "falcon" / "outputs" / "yolov26spv" / stem / "predictions_yolo.txt"
-    if t.exists():
-        counts = {}
-        for line in t.read_text().splitlines():
-            parts = line.strip().split()
-            if not parts:
-                continue
+    # legacy: chosen-pics-5cls per-image txt (5cls) or flat
+    for cand in [
+        APP_DIR / "falcon" / "outputs" / "chosen-pics-5cls" / stem / "predictions_yolo.txt",
+        APP_DIR / "falcon" / "outputs" / "chosen-pics-5cls" / f"{stem}.txt",
+        APP_DIR / "falcon" / "outputs" / "falcon" / f"{stem}.txt",
+    ]:
+        if cand.exists():
+            counts = {}
+            for line in cand.read_text().splitlines():
+                parts = line.strip().split()
+                if not parts:
+                    continue
+                try:
+                    cid = int(float(parts[0]))
+                except Exception:
+                    continue
+                name = CLASS_ID_TO_NAME.get(cid)
+                if name:
+                    counts[name] = counts.get(name, 0) + 1
+            return counts
+    return {}
+
+
+@st.cache_data(show_spinner=False)
+def _yolo_counts_for(stem: str) -> dict:
+    # new flat: falcon/outputs/yolov26spv/<stem>.json
+    for cand in [
+        APP_DIR / "falcon" / "outputs" / "yolov26spv" / f"{stem}.json",
+        APP_DIR / "falcon" / "outputs" / "yolov26spv" / stem / "detections.json",
+    ]:
+        if cand.exists():
             try:
-                cid = int(float(parts[0]))
+                data = json.loads(cand.read_text())
+                if isinstance(data, dict) and "detections" in data:
+                    data = data["detections"]
+                counts: dict[str, int] = {}
+                for d in data if isinstance(data, list) else []:
+                    raw = str(d.get("label") or d.get("key") or "").strip().lower()
+                    name = _YOLO_LABEL_MAP.get(raw, raw)
+                    if name in CLASS_ORDER:
+                        counts[name] = counts.get(name, 0) + 1
+                return counts
             except Exception:
-                continue
-            name = CLASS_ID_TO_NAME.get(cid)
-            if name:
-                counts[name] = counts.get(name, 0) + 1
-        return counts
+                pass
+    # fallback to predictions_yolo.txt (flat or per-folder)
+    for cand in [
+        APP_DIR / "falcon" / "outputs" / "yolov26spv" / f"{stem}.txt",
+        APP_DIR / "falcon" / "outputs" / "yolov26spv" / stem / "predictions_yolo.txt",
+    ]:
+        if cand.exists():
+            counts = {}
+            for line in cand.read_text().splitlines():
+                parts = line.strip().split()
+                if not parts:
+                    continue
+                try:
+                    cid = int(float(parts[0]))
+                except Exception:
+                    continue
+                name = CLASS_ID_TO_NAME.get(cid)
+                if name:
+                    counts[name] = counts.get(name, 0) + 1
+            return counts
     return {}
 
 
@@ -371,29 +414,48 @@ def _gt_counts_for(stem: str) -> dict | None:
     return None
 
 
+def _gemini_counts_for(stem: str) -> dict:
+    # gemini flat json; ppe_0837 uses _2 variant
+    candidates = [APP_DIR / "falcon" / "outputs" / "gemini" / f"{stem}.json"]
+    if stem == "ppe_0837_jpg.rf.qwzMohKlnO50iRnP6P8m":
+        candidates.append(APP_DIR / "falcon" / "outputs" / "gemini" / "ppe_0837_jpg.rf.qwzMohKlnO50iRnP6P8m_2.json")
+    for cand in candidates:
+        if cand.exists():
+            try:
+                data = json.loads(cand.read_text())
+                if isinstance(data, dict) and "detections" in data:
+                    data = data["detections"]
+                counts: dict[str, int] = {}
+                for d in data if isinstance(data, list) else []:
+                    raw = str(d.get("key") or d.get("label") or "").strip().lower()
+                    name = _GEMINI_LABEL_MAP.get(raw, raw)
+                    if name in CLASS_ORDER:
+                        counts[name] = counts.get(name, 0) + 1
+                return counts
+            except Exception:
+                pass
+    return {}
+
+
 stem = Path(selected).stem
 yolo_c = _yolo_counts_for(stem)
 falcon_c = _falcon_counts_for(stem)
-gt_c = _gt_counts_for(stem)
+gemini_c = _gemini_counts_for(stem)
 
 rows = []
 for cls in CLASS_ORDER:
-    gt_v = gt_c.get(cls, 0) if gt_c is not None else "—"
-    rows.append({"Class": cls, "GT": gt_v, "YOLO": yolo_c.get(cls, 0), "Falcon": falcon_c.get(cls, 0)})
+    rows.append({"Class": cls, "YOLO": yolo_c.get(cls, 0), "Falcon": falcon_c.get(cls, 0), "Gemini": gemini_c.get(cls, 0)})
 
 count_df = pd.DataFrame(rows)
 
 # Totals row
-tot_gt = sum(v for v in [gt_c.get(k, 0) for k in CLASS_ORDER] if gt_c is not None) if gt_c is not None else "—"
 tot_yolo = sum(yolo_c.get(k, 0) for k in CLASS_ORDER)
 tot_falcon = sum(falcon_c.get(k, 0) for k in CLASS_ORDER)
-count_df.loc[len(count_df)] = ["Total", tot_gt, tot_yolo, tot_falcon]
+tot_gemini = sum(gemini_c.get(k, 0) for k in CLASS_ORDER)
+count_df.loc[len(count_df)] = ["Total", tot_yolo, tot_falcon, tot_gemini]
 
 st.dataframe(count_df, width="stretch", hide_index=True)
 
-if gt_c is None:
-    st.caption("GT not available for this curated 10-image comparison set (no published labels in the repo) — showing YOLO vs Falcon counts only. Add a per-image `gt.txt` to enable the GT column.")
-else:
-    st.caption("Counts are boxes per class for the selected image. GT from labels, YOLO from detections.json, Falcon from predictions_yolo.txt.")
+st.caption("Counts are boxes per class for the selected image. YOLO from yolov26spv/*.json, Falcon from falcon/*.json, Gemini from gemini/*.json.")
 
 st.caption("Gallery reads from falcon/outputs/comparison (fallback falcon/output/comparison). Add new comparisons by dropping JPGs into that folder — they appear on next reload (clear cache if needed).")

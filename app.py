@@ -9,7 +9,7 @@ writeup_page = st.Page("pages/writeup.py", title="Write Up")
 demo_page = st.Page("pages/demo.py", title="Demo")
 video_page = st.Page("pages/video.py", title="Live Video")
 compare_page = st.Page("pages/model_compare.py", title="Model Comparison")
-falcon_page = st.Page("pages/falcon_comparison.py", title="Falcon Comparison")
+falcon_page = st.Page("pages/llm_comparison.py", title="LLM Comparison")
 historical_page = st.Page("pages/historical.py", title="Historical Data")
 performance_page = st.Page("pages/model_performance.py", title="Model Performance")
 
