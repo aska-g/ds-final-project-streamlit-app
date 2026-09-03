@@ -1,0 +1,7 @@
+[
+  {"box_2d": [74, 0, 997, 377], "label": "person"},
+  {"box_2d": [372, 49, 997, 360], "label": "safety vest"},
+  {"box_2d": [472, 269, 1000, 646], "label": "person"},
+  {"box_2d": [0, 401, 998, 903], "label": "person"},
+  {"box_2d": [352, 532, 998, 882], "label": "safety vest"}
+]

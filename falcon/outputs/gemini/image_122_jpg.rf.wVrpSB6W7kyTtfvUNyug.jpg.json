@@ -1,0 +1,9 @@
+[
+  {"box_2d": [153, 98, 915, 630], "label": "person"},
+  {"box_2d": [147, 335, 219, 413], "label": "hardhat"},
+  {"box_2d": [275, 303, 532, 452], "label": "safety vest"},
+  {"box_2d": [206, 99, 303, 176], "label": "gloves"},
+  {"box_2d": [194, 561, 280, 634], "label": "gloves"},
+  {"box_2d": [864, 356, 914, 396], "label": "boots"},
+  {"box_2d": [868, 396, 913, 434], "label": "boots"}
+]

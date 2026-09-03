@@ -1,0 +1,12 @@
+[
+  {"box_2d": [310, 843, 804, 982], "label": "person"},
+  {"box_2d": [311, 882, 370, 938], "label": "hardhat"},
+  {"box_2d": [412, 852, 668, 974], "label": "safety vest"},
+  {"box_2d": [352, 439, 898, 521], "label": "person"},
+  {"box_2d": [352, 479, 410, 514], "label": "hardhat"},
+  {"box_2d": [454, 453, 676, 497], "label": "safety vest"},
+  {"box_2d": [319, 476, 907, 612], "label": "person"},
+  {"box_2d": [325, 658, 896, 814], "label": "person"},
+  {"box_2d": [333, 150, 889, 303], "label": "person"},
+  {"box_2d": [315, 36, 882, 163], "label": "person"}
+]

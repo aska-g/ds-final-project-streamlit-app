@@ -1,0 +1,19 @@
+[
+  {"box_2d": [417, 59, 897, 269], "label": "person"},
+  {"box_2d": [417, 84, 496, 196], "label": "hardhat"},
+  {"box_2d": [548, 62, 765, 228], "label": "safety vest"},
+  {"box_2d": [456, 263, 856, 496], "label": "person"},
+  {"box_2d": [456, 296, 591, 430], "label": "hardhat"},
+  {"box_2d": [616, 276, 825, 496], "label": "safety vest"},
+  {"box_2d": [478, 672, 999, 985], "label": "person"},
+  {"box_2d": [478, 735, 596, 917], "label": "hardhat"},
+  {"box_2d": [654, 715, 1000, 984], "label": "safety vest"},
+  {"box_2d": [427, 478, 622, 577], "label": "person"},
+  {"box_2d": [429, 502, 489, 572], "label": "hardhat"},
+  {"box_2d": [513, 482, 623, 569], "label": "safety vest"},
+  {"box_2d": [468, 549, 728, 692], "label": "person"},
+  {"box_2d": [471, 552, 577, 666], "label": "hardhat"},
+  {"box_2d": [587, 584, 729, 694], "label": "safety vest"},
+  {"box_2d": [586, 478, 804, 674], "label": "hardhat"},
+  {"box_2d": [769, 328, 896, 649], "label": "safety vest"}
+]

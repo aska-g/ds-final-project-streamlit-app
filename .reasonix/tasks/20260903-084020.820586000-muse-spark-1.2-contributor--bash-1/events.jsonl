@@ -1,0 +1,2 @@
+{"sequence":1,"timestamp":"2026-09-03T17:19:27.9095271+08:00","event_type":"state_change","task_id":"20260903-084020.820586000-muse-spark-1.2-contributor--bash-1","session_id":"20260903-084020.820586000-muse-spark-1.2-contributor","state":"running","runtime_state":"alive"}
+{"sequence":2,"timestamp":"2026-09-03T17:39:25.2670002+08:00","event_type":"state_change","task_id":"20260903-084020.820586000-muse-spark-1.2-contributor--bash-1","session_id":"20260903-084020.820586000-muse-spark-1.2-contributor","state":"succeeded","runtime_state":"exited"}

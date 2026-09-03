@@ -1,0 +1,5 @@
+[
+  {"box_2d": [116, 68, 1000, 681], "label": "person"},
+  {"box_2d": [118, 115, 427, 396], "label": "hardhat"},
+  {"box_2d": [562, 69, 1000, 437], "label": "safety vest"}
+]
