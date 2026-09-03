@@ -1,0 +1,43 @@
+{
+  "n_val": 1092,
+  "class_order": [
+    "hardhat",
+    "no_hardhat"
+  ],
+  "confusion_matrix": {
+    "labels": [
+      "hardhat",
+      "no_hardhat"
+    ],
+    "matrix": [
+      [
+        554,
+        63
+      ],
+      [
+        40,
+        435
+      ]
+    ]
+  },
+  "accuracy": 0.9057,
+  "per_class": {
+    "hardhat": {
+      "precision": 0.9327,
+      "recall": 0.8979
+    },
+    "no_hardhat": {
+      "precision": 0.8735,
+      "recall": 0.9158,
+      "f1": 0.8941,
+      "f2": 0.907
+    }
+  },
+  "macro": {
+    "precision": 0.9031,
+    "recall": 0.9068,
+    "f1": 0.905,
+    "f2": 0.9061
+  },
+  "stored_val_accuracy_from_baseline_stats_json": 0.9048
+}
