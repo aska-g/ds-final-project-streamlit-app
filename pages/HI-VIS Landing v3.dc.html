@@ -33,7 +33,7 @@ a{color:inherit}
   </div>
 
   <div style="position:absolute;right:22px;top:50%;transform:translateY(-50%);z-index:40;display:flex;flex-direction:column;gap:9px">
-    <sc-for list="{{dots}}" as="d" hint-placeholder-count="14">
+    <sc-for list="{{dots}}" as="d" hint-placeholder-count="16">
       <button onClick="{{d.go}}" aria-label="{{d.label}}" title="{{d.label}}" style="width:11px;height:11px;padding:0;border:1px solid {{d.bd}};background:{{d.bg}};cursor:pointer;display:block"></button>
     </sc-for>
   </div>
@@ -265,11 +265,20 @@ a{color:inherit}
       </div>
     </section>
 
+    <!-- LLM exploration -->
+    <section data-screen-label="06 LLM exploration" style="height:100vh;background:#EFE600;color:#141414;display:flex;align-items:center;justify-content:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1100px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,30px);opacity:{{o5}};transform:{{t5}};transition:opacity 0.8s ease 0.1s,transform 0.8s ease 0.1s" ref="{{r5}}">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px">05 — AND WE TRIED AN LLM TOO</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(40px,6.8vw,104px);line-height:1.06;text-wrap:balance">[PLACEHOLDER — YOUR LLM HEADLINE HERE]</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.5px;max-width:640px">The app already asks Gemini for a plain-English scene description under every photo (see gemini_caption.py) — [ADD: what else you explored, what worked, what you decided against, and why].</div>
+      </div>
+    </section>
+
     <!-- The call -->
-    <section data-screen-label="06 The call" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o5}};transform:{{t5}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r5}}">
+    <section data-screen-label="07 The call" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o6}};transform:{{t6}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r6}}">
         <div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#71736D;margin-bottom:10px">05 — THE CALL</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#71736D;margin-bottom:10px">06 — THE CALL</div>
           <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(34px,5.5vw,80px);line-height:0.95;margin:0">WE SHIPPED THE MODEL WITH THE LOWER SCORE.</h2>
         </div>
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:24px;align-items:stretch">
@@ -291,19 +300,19 @@ a{color:inherit}
     </section>
 
     <!-- One more question -->
-    <section data-screen-label="07 One more question" style="height:100vh;background:#EFE600;color:#141414;display:flex;align-items:center;justify-content:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1100px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,30px);opacity:{{o6}};transform:{{t6}};transition:opacity 0.8s ease 0.1s,transform 0.8s ease 0.1s" ref="{{r6}}">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px">06 — ONE MORE QUESTION</div>
+    <section data-screen-label="08 One more question" style="height:100vh;background:#EFE600;color:#141414;display:flex;align-items:center;justify-content:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1100px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,30px);opacity:{{o7}};transform:{{t7}};transition:opacity 0.8s ease 0.1s,transform 0.8s ease 0.1s" ref="{{r7}}">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px">07 — ONE MORE QUESTION</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(40px,6.8vw,104px);line-height:1.06;text-wrap:balance">MODEL SHIPPED. THE NUMBERS SAID WE WERE DONE. <span style="background:#141414;color:#EFE600;padding:0 18px">WE WERE NOT CONVINCED.</span></div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.5px;max-width:640px">We didn't have time to relabel everything — so we hand-relabelled 700 photos with a cleaner, unified schema, ran them through preprocessing, and grew that into a 6,000-image dataset. Then we retrained and pulled up the metrics.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.5px;max-width:640px">We didn't have time to relabel everything — so we hand-relabelled 900 photos with a cleaner, unified schema, ran them through preprocessing, and grew that into a 26,500-image dataset. Then we retrained and pulled up the metrics.</div>
       </div>
     </section>
 
     <!-- SuperVisor.v1 -- the scare -->
-    <section data-screen-label="08 The scare" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o7}};transform:{{t7}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r7}}">
+    <section data-screen-label="09 The scare" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o8}};transform:{{t8}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r8}}">
         <div style="display:flex;flex-direction:column;gap:20px">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">07 — FIRST READ</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">08 — FIRST READ</div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(60px,11vw,170px);line-height:0.9;color:#EFE600;font-variant-numeric:tabular-nums">47.5%</div>
           <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(30px,3vw,44px);line-height:1;margin:0">WORSE THAN ATTEMPT 1 — OUR VERY FIRST MODEL, TRAINED MORE THAN A WEEK BEFORE.</h2>
           <p style="margin:0;font-size:15px;color:#C9CBC4;max-width:480px">yolo26s_supervisorv1_fixed_nomosaic_300e, early-stopped at 71 of 300 epochs. On paper, every number fell against Attempt 6's rerun.<br> <strong style="color:#FFFFFF">We thought we'd broken it.</strong></p>
@@ -324,10 +333,10 @@ a{color:inherit}
     </section>
 
     <!-- SuperVisor.v1 -- the reveal -->
-    <section data-screen-label="09 The reveal" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o8}};transform:{{t8}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r8}}">
+    <section data-screen-label="10 The reveal" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o9}};transform:{{t9}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r9}}">
         <div style="display:flex;flex-direction:column;gap:18px">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">08 — BUT THEN WE LOOKED</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">09 — BUT THEN WE LOOKED</div>
           <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(34px,3.6vw,54px);line-height:1;margin:0">SIDE BY SIDE, ON REAL PHOTOS, IT CAUGHT WHAT ATTEMPT 6 MISSED.</h2>
           <p style="margin:0;font-size:15px;color:#C9CBC4;max-width:480px">Same batch, our comparison tool. Attempt 6: one flag out of six photos. Attempt 8: six out of six — not trigger-happy, the boxes show it catching violations Attempt 6 walked straight past. <strong style="color:#FFFFFF">Our relabelled images just carry more boxes per photo — more chances for a correct call to be marked wrong.</strong></p>
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(26px,2.6vw,36px);line-height:1.05;color:#EFE600">A LOWER SCORE ISN'T ALWAYS A WORSE MODEL. SOMETIMES IT'S A HARDER TEST.</div>
@@ -360,16 +369,89 @@ a{color:inherit}
     </section>
 
     <!-- Bridge to findings -->
-    <section data-screen-label="10 And while we were at it" style="height:100vh;background:#EFE600;color:#141414;display:flex;align-items:center;justify-content:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1100px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,30px);opacity:{{o9}};transform:{{t9}};transition:opacity 0.8s ease 0.1s,transform 0.8s ease 0.1s" ref="{{r9}}">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px">09 — AND WHILE WE WERE AT IT</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(40px,6.8vw,104px);line-height:1.06;text-wrap:balance">RELABELLING ONE MODEL'S DATA MADE US DISTRUST ALL OF IT. <span style="background:#141414;color:#EFE600;padding:0 18px">SO WE AUDITED THE ORIGINAL DATASET TOO.</span></div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.5px;max-width:640px">We checked every label by hand, then ran a duplicate-photo check across all 13,284 images and 92,239 labelled boxes. Here's what four days of model-building had missed.</div>
+    <section data-screen-label="11 And while we were at it" style="height:100vh;background:#EFE600;color:#141414;display:flex;align-items:center;justify-content:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1100px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(16px,3vh,30px);opacity:{{o10}};transform:{{t10}};transition:opacity 0.8s ease 0.1s,transform 0.8s ease 0.1s" ref="{{r10}}">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px">10 — AND WHILE WE WERE AT IT</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(40px,6.8vw,104px);line-height:1.06;text-wrap:balance">DATASET<span style="background:#141414;color:#EFE600;padding:0 18px">EVOLUTION.</span></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.5px;max-width:640px">How we went from a ready dataset, through merging of 3 different datasets, to a manually labelled dataset reduced in size.</div>
       </div>
     </section>
 
-    <section data-screen-label="11 Finding 1" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o10}};transform:{{t10}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r10}}">
+    <!-- Dataset stats -->
+    <section data-screen-label="12 Dataset stats" style="height:100vh;background:#E4E5E2;color:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(14px,3vh,30px);opacity:{{o11}};transform:{{t11}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r11}}">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#71736D;margin-bottom:10px">DATASET EVOLUTION — BY THE NUMBERS</div>
+          <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(30px,4vw,54px);line-height:0.98;margin:0">FIVE DATASETS, ONE PIPELINE.</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px">
+          <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.2px;color:#71736D">CSS DATA</div>
+            <div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(26px,2.6vw,38px);line-height:1;font-variant-numeric:tabular-nums">2,801</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#4A4B47">images</div>
+            </div>
+            <div style="border-top:1px solid #E4E5E2;padding-top:7px;display:flex;flex-direction:column;gap:4px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#4A4B47">
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>annotations</span><span style="font-weight:600;color:#141414">35,575</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>avg / image</span><span style="font-weight:600;color:#141414">12.70</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>classes</span><span style="font-weight:600;color:#141414">10</span></div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.2px;color:#71736D">MERGED</div>
+            <div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(26px,2.6vw,38px);line-height:1;font-variant-numeric:tabular-nums">13,284</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#4A4B47">images</div>
+            </div>
+            <div style="border-top:1px solid #E4E5E2;padding-top:7px;display:flex;flex-direction:column;gap:4px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#4A4B47">
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>annotations</span><span style="font-weight:600;color:#141414">63,859</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>avg / image</span><span style="font-weight:600;color:#141414">4.81</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>classes</span><span style="font-weight:600;color:#141414">8</span></div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.2px;color:#71736D">MERGED (WITH PERSON)</div>
+            <div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(26px,2.6vw,38px);line-height:1;font-variant-numeric:tabular-nums">13,284</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#4A4B47">images</div>
+            </div>
+            <div style="border-top:1px solid #E4E5E2;padding-top:7px;display:flex;flex-direction:column;gap:4px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#4A4B47">
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>annotations</span><span style="font-weight:600;color:#141414">92,244</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>avg / image</span><span style="font-weight:600;color:#141414">6.94</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>classes</span><span style="font-weight:600;color:#141414">9</span></div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.2px;color:#71736D">NEW ANNOTATED SET</div>
+            <div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(26px,2.6vw,38px);line-height:1;font-variant-numeric:tabular-nums">908</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#4A4B47">images</div>
+            </div>
+            <div style="border-top:1px solid #E4E5E2;padding-top:7px;display:flex;flex-direction:column;gap:4px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#4A4B47">
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>annotations</span><span style="font-weight:600;color:#141414">11,954</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>avg / image</span><span style="font-weight:600;color:#141414">13.2</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>classes</span><span style="font-weight:600;color:#141414">11</span></div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #C4C6C0;padding:16px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.2px;color:#71736D">NEW SET + PREPROCESSING</div>
+            <div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(26px,2.6vw,38px);line-height:1;font-variant-numeric:tabular-nums">26,564</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#4A4B47">images</div>
+            </div>
+            <div style="border-top:1px solid #E4E5E2;padding-top:7px;display:flex;flex-direction:column;gap:4px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#4A4B47">
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>annotations</span><span style="font-weight:600;color:#141414">114,198</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>avg / image</span><span style="font-weight:600;color:#141414">4.30</span></div>
+              <div style="display:flex;justify-content:space-between;gap:6px"><span>classes</span><span style="font-weight:600;color:#141414">11</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#71736D">Missing annotations: 0 across every dataset. Merged: same files, counted with vs. without Person boxes. New annotated set: Roboflow-reported (pre-preprocessing export not stored locally).</div>
+      </div>
+    </section>
+
+    <section data-screen-label="13 Finding 1" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o12}};transform:{{t12}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r12}}">
         <div style="display:flex;flex-direction:column;gap:20px">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">FINDING 1 OF 5 — CRITICAL</div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(60px,11vw,170px);line-height:0.9;color:#EFE600;font-variant-numeric:tabular-nums">{{f1}}%</div>
@@ -397,8 +479,8 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="12 Finding 2" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o11}};transform:{{t11}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r11}}">
+    <section data-screen-label="14 Finding 2" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(24px,4.5vh,56px);align-items:center;opacity:{{o13}};transform:{{t13}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r13}}">
         <div style="display:flex;flex-direction:column;gap:20px">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">FINDING 2 OF 5 — CRITICAL</div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(60px,11vw,170px);line-height:0.9;color:#EFE600;font-variant-numeric:tabular-nums">{{f2}}%</div>
@@ -425,8 +507,8 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="13 Findings 3 to 5" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o12}};transform:{{t12}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r12}}">
+    <section data-screen-label="15 Findings 3 to 5" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(16px,3.5vh,36px);opacity:{{o14}};transform:{{t14}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r14}}">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600">FINDINGS 3 · 4 · 5</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch">
           <div style="border:1px solid #3A3B38;padding:26px;display:flex;flex-direction:column;gap:12px">
@@ -455,10 +537,10 @@ a{color:inherit}
       </div>
     </section>
 
-    <section data-screen-label="14 Next and team" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
-      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(14px,3vh,34px);opacity:{{o13}};transform:{{t13}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r13}}">
+    <section data-screen-label="16 Next and team" style="height:100vh;background:#141414;display:flex;align-items:center;padding:clamp(60px,9vh,88px) clamp(28px,4vw,60px)">
+      <div style="max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:clamp(14px,3vh,34px);opacity:{{o15}};transform:{{t15}};transition:opacity 0.7s ease 0.1s,transform 0.7s ease 0.1s" ref="{{r15}}">
         <div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600;margin-bottom:10px">10 — WHAT WE'D DO NEXT</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:#EFE600;margin-bottom:10px">11 — WHAT WE'D DO NEXT</div>
           <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(34px,5.5vw,80px);line-height:0.95;margin:0;text-wrap:balance">THEN RE-MEASURE, AND FIND OUT WHAT WE ACTUALLY BUILT.</h2>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:10px">
@@ -482,13 +564,13 @@ a{color:inherit}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;wheelNav&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Navigation&quot;}, &quot;startPanel&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 0, &quot;min&quot;: 0, &quot;max&quot;: 13, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Navigation&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;wheelNav&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Navigation&quot;}, &quot;startPanel&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 0, &quot;min&quot;: 0, &quot;max&quot;: 15, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Navigation&quot;}}">
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    const NAMES = ['TITLE', 'THE PROBLEM', 'THE RESPONSE', 'THE PRODUCT', 'THE PROGRESSION', 'THE CALL', 'ONE MORE QUESTION', 'THE SCARE', 'THE REVEAL', 'AND WHILE WE WERE AT IT', 'FINDING 1 — CONTAMINATION', 'FINDING 2 — BLIND SPOTS', 'FINDINGS 3·4·5', 'WHAT NEXT + TEAM'];
+    const NAMES = ['TITLE', 'THE PROBLEM', 'THE RESPONSE', 'THE PRODUCT', 'THE PROGRESSION', 'LLM EXPLORATION', 'THE CALL', 'ONE MORE QUESTION', 'THE SCARE', 'THE REVEAL', 'AND WHILE WE WERE AT IT', 'DATASETS BY THE NUMBERS', 'FINDING 1 — CONTAMINATION', 'FINDING 2 — BLIND SPOTS', 'FINDINGS 3·4·5', 'WHAT NEXT + TEAM'];
     this.names = NAMES;
-    this.N = 14;
+    this.N = 16;
     let start = parseInt(props.startPanel, 10);
     if (isNaN(start)) { const saved = parseInt(localStorage.getItem('hivis-v3-panel'), 10); start = isNaN(saved) ? 0 : saved; }
     start = Math.max(0, Math.min(this.N - 1, start));
@@ -571,7 +653,7 @@ class Component extends DCLogic {
   }
   renderVals() {
     const s = this.state, i = s.idx, p = s.p;
-    const lightPanels = [3, 4, 5, 6, 9];
+    const lightPanels = [3, 4, 5, 6, 7, 10, 11];
     const onLight = lightPanels.indexOf(i) >= 0;
     const vals = {
       trackY: 'translateY(-' + i * 100 + 'vh)',

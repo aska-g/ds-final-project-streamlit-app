@@ -125,6 +125,18 @@ CSS_M_300E_LABEL = "YOLO26m · yolo26m_css_300e"
 SUPERVISOR_V1_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26s_supervisorv1_fixed_nomosaic_300e" / "weights" / "best.pt"
 SUPERVISOR_V1_LABEL = "YOLO26s · yolo26s_supervisorv1_fixed_nomosaic_300e"
 
+# yolo26s_supervisorv4_300e — same yolo26s backbone as SUPERVISOR_V1_WEIGHTS above, but
+# retrained on "SuperVisor.v4", the preprocessed export of our own new annotated set (resize
+# to 512x512 + augmentation; see data/annotated with preprocessing). Mosaic augmentation left
+# ON this time (unlike v1's "nomosaic"), requested epochs=300/patience=25, early-stopped at
+# 46/300. Aggregate metrics land in the same range as v1, not a clear win either way
+# (precision 59,4% vs 61,8%, recall 49,9% vs 47,4%, mAP50 47,0% vs 47,5%, mAP50-95 20,6% vs
+# 20,1%) -- still far below the current default (yolo26m_merged_150ev2). Read this as the
+# same early-stage picture as v1, now on the bigger preprocessed dataset -- not wired in as
+# any page's default.
+SUPERVISOR_V4_WEIGHTS = REPO_ROOT / "runs" / "detect" / "yolo26s_supervisorv4_300e" / "weights" / "best.pt"
+SUPERVISOR_V4_LABEL = "YOLO26s · yolo26s_supervisorv4_300e"
+
 DEFAULT_WEIGHTS = MERGED_M_V2_WEIGHTS
 DEFAULT_LABEL = MERGED_M_V2_LABEL
 

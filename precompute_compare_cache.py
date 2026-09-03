@@ -14,7 +14,7 @@ Run this manually:
 
 ...whenever:
   - a photo is added, removed, or replaced in assets/images/
-  - MERGED_M_V2_WEIGHTS or SUPERVISOR_V1_WEIGHTS in detector.py end up
+  - MERGED_M_V2_WEIGHTS or SUPERVISOR_V4_WEIGHTS in detector.py end up
     pointing at a retrained/different run
 
 If the cache is missing entirely, or missing an entry for some image (e.g.
@@ -35,7 +35,7 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 # Kept in sync with the MODELS list in pages/model_compare.py.
 MODELS = [
     {"key": "merged-m-v2", "weights": detector.MERGED_M_V2_WEIGHTS, "label": detector.MERGED_M_V2_LABEL},
-    {"key": "supervisorv1", "weights": detector.SUPERVISOR_V1_WEIGHTS, "label": detector.SUPERVISOR_V1_LABEL},
+    {"key": "supervisorv4", "weights": detector.SUPERVISOR_V4_WEIGHTS, "label": detector.SUPERVISOR_V4_LABEL},
 ]
 
 

@@ -65,11 +65,11 @@ required = tuple(
 )
 
 # Only the two runs we're actively comparing in this deck's story: current
-# production model vs. first attempt on the new SuperVisor dataset. Every
+# production model vs. the SuperVisor.v4 run (preprocessed dataset). Every
 # other trained run stays out of this page — see the module docstring.
 MODELS = [
     {"key": "merged-m-v2", "weights": detector.MERGED_M_V2_WEIGHTS, "label": detector.MERGED_M_V2_LABEL},
-    {"key": "supervisorv1", "weights": detector.SUPERVISOR_V1_WEIGHTS, "label": detector.SUPERVISOR_V1_LABEL},
+    {"key": "supervisorv4", "weights": detector.SUPERVISOR_V4_WEIGHTS, "label": detector.SUPERVISOR_V4_LABEL},
 ]
 
 
