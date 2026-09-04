@@ -372,6 +372,46 @@ hr { border-color:#C4C6C0; }
 .st-key-isolate_buttons [data-testid="stBaseButton-primary"] p {
     white-space:nowrap !important;
 }
+/* RESULTS gallery grid: demo.py now calls st.columns(4) once per row of 4
+   photos, so each row is its own stHorizontalBlock and Streamlit's own
+   default align-items:stretch already gives every stColumn in that row
+   the same height (the tallest card's). What's still needed is making the
+   *content* fill that stretched height: the column's inner block and the
+   card itself are turned into flex columns, and the caption -- the one
+   part whose length genuinely varies, since it's an AI-written scene
+   description -- is the part that grows to absorb the difference. That
+   keeps the image and badge row identical across every card and puts the
+   "Open" button at the same y position for every card in a row. */
+.st-key-results_grid [data-testid="stColumn"] {
+    display:flex !important;
+}
+.st-key-results_grid [data-testid="stColumn"] > div {
+    display:flex !important;
+    flex-direction:column !important;
+    width:100%;
+}
+.st-key-results_grid [data-testid="stVerticalBlock"] {
+    height:100%;
+}
+.st-key-results_grid [data-testid="stElementContainer"]:has(.hv-result-card) {
+    display:flex !important;
+    flex-direction:column !important;
+    flex:1 1 auto !important;
+}
+.st-key-results_grid .hv-result-card {
+    display:flex;
+    flex-direction:column;
+    flex:1 1 auto;
+    height:100%;
+}
+.st-key-results_grid .hv-result-caption {
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+}
+.st-key-results_grid .hv-result-caption > div {
+    flex:1 1 auto;
+}
 
 </style>
 """

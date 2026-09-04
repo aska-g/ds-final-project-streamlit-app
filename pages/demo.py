@@ -391,25 +391,35 @@ if st.session_state.view == "results":
                      'color:#71736D;font-size:13px">No photos in this batch yet.</div>', unsafe_allow_html=True)
     else:
         shown = filtered[:st.session_state.gallery_limit]
-        cols = st.columns(4)
-        for i, it in enumerate(shown):
-            a = it["assessment"]
-            with cols[i % 4]:
-                b64 = vh.b64_image(vh.draw_overlay(it["image"], a["persons"], show_boxes=True, show_labels=False))
-                fc = vh.flag_confidence(a, required)
-                conf_label = f"{fc:.2f} conf" if fc is not None else "— conf"
-                st.markdown(f"""
-                <div style="background:#FFFFFF;border:1px solid #C4C6C0" title="{it['name']}">
-                  <img src="data:image/jpeg;base64,{b64}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"/>
-                  <div style="display:flex;align-items:center;gap:8px;padding:7px 9px">
-                    {vh.verdict_badge(a["verdict"])}
-                    <span class="hv-mono" style="font-size:11px;color:#4A4B47;white-space:nowrap">{conf_label}</span>
-                  </div>
-                  {caption_html(it["key"])}
-                </div>
-                """, unsafe_allow_html=True)
-                if st.button("Open →", key=f"open_{it['key']}", width="stretch"):
-                    go(view="detail", detail_key=it["key"], selected_person=None)
+        # A fresh st.columns(4) per row of 4 (rather than one st.columns(4)
+        # reused for the whole batch) so each row is its own flex container —
+        # otherwise Streamlit just stacks items 4/8/12/... underneath items
+        # 0/1/2/3 in the same 4 columns, with no row boundary at all, so a
+        # short caption in one column desyncs every item below it forever.
+        # The container key scopes the CSS (view_helpers.HV_STYLE_CSS) that
+        # stretches every card in a row to the row's tallest one.
+        with st.container(key="results_grid"):
+            for row_start in range(0, len(shown), 4):
+                row_items = shown[row_start:row_start + 4]
+                cols = st.columns(4)
+                for i, it in enumerate(row_items):
+                    a = it["assessment"]
+                    with cols[i]:
+                        b64 = vh.b64_image(vh.draw_overlay(it["image"], a["persons"], show_boxes=True, show_labels=False))
+                        fc = vh.flag_confidence(a, required)
+                        conf_label = f"{fc:.2f} conf" if fc is not None else "— conf"
+                        st.markdown(f"""
+                        <div class="hv-result-card" title="{it['name']}">
+                          <img src="data:image/jpeg;base64,{b64}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"/>
+                          <div style="display:flex;align-items:center;gap:8px;padding:7px 9px">
+                            {vh.verdict_badge(a["verdict"])}
+                            <span class="hv-mono" style="font-size:11px;color:#4A4B47;white-space:nowrap">{conf_label}</span>
+                          </div>
+                          <div class="hv-result-caption">{caption_html(it["key"])}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("Open →", key=f"open_{it['key']}", width="stretch"):
+                            go(view="detail", detail_key=it["key"], selected_person=None)
         if len(filtered) > st.session_state.gallery_limit:
             if st.button(f"Show more photos ({len(filtered) - st.session_state.gallery_limit} remaining)"):
                 st.session_state.gallery_limit += 12
