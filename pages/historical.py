@@ -103,7 +103,7 @@ def _fmt_dt(d):
 
 manifest = th.load_manifest()
 
-threshold = st.session_state.get("threshold", 0.35)
+threshold = st.session_state.get("threshold", 0.1)
 required = tuple(
     s for s, dflt in (
         ("hardhat", True), ("vest", True), ("mask", True), ("gloves", True), ("boots", True),

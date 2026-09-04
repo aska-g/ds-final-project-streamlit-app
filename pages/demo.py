@@ -24,7 +24,7 @@ import annotate_helpers as ah
 # ---------------------------------------------------------------------------
 
 _DEFAULTS = {
-    "threshold": 0.35,
+    "threshold": 0.1,
     "view": "results",
     "detail_key": None,
     "selected_person": None,

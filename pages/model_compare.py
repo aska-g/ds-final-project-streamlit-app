@@ -56,7 +56,7 @@ if not image_paths:
 
 items = [{"key": p.name, "name": p.name, "image": vh.load_image(p.read_bytes())} for p in image_paths]
 
-threshold = st.session_state.get("threshold", 0.35)
+threshold = st.session_state.get("threshold", 0.1)
 required = tuple(
     s for s, dflt in (
         ("hardhat", True), ("vest", True), ("mask", True), ("gloves", True), ("boots", True),
