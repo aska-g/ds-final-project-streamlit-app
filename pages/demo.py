@@ -548,31 +548,37 @@ else:
                 else:
                     st.toast("No exceptions in the current batch.")
 
+    edit_key = f"editmode_{it['key']}"
+    st.session_state.setdefault(edit_key, False)
+    # Scoped container (see ".st-key-detail_controls" in
+    # view_helpers.HV_STYLE_CSS). Toggle and checkbox used to be on
+    # separate stacked lines -- since the switch (32px) and the
+    # checkbox (16px) are different widths, their two labels started at
+    # different x offsets, reading as a ragged, "not aligned" left edge.
+    # Putting both on one row sidesteps that entirely instead of trying
+    # to force-match native widget internals. This row also sits above
+    # the photo/person-cards split below (rather than inside the photo's
+    # own column) so that split's two columns both start their content
+    # at the same y -- with this row nested inside the photo column
+    # only, it pushed the photo down by its own height while the person
+    # cards on the right (nothing above them) stayed put, reading as
+    # "not aligned" top edges.
+    with st.container(key="detail_controls"):
+        ec1, ec2, ec3 = st.columns([5, 3, 3])
+        with ec1:
+            st.session_state[edit_key] = st.toggle(
+                "✎ Correct labels for this photo", value=st.session_state[edit_key], key=f"toggle_{it['key']}")
+        with ec2:
+            if not st.session_state[edit_key]:
+                st.session_state.show_boxes = st.checkbox("Show detection boxes", value=st.session_state.show_boxes)
+        with ec3:
+            if it.get("corrected"):
+                st.markdown('<div style="text-align:right;padding-top:6px">'
+                             '<span class="hv-mono" style="font-size:11px;background:#141414;color:#EFE600;'
+                             'padding:3px 9px">✓ CORRECTION SAVED</span></div>', unsafe_allow_html=True)
+
     left, right = st.columns([3, 2])
     with left:
-        edit_key = f"editmode_{it['key']}"
-        st.session_state.setdefault(edit_key, False)
-        # Scoped container (see ".st-key-detail_controls" in
-        # view_helpers.HV_STYLE_CSS). Toggle and checkbox used to be on
-        # separate stacked lines -- since the switch (32px) and the
-        # checkbox (16px) are different widths, their two labels started at
-        # different x offsets, reading as a ragged, "not aligned" left
-        # edge. Putting both on one row sidesteps that entirely instead of
-        # trying to force-match native widget internals.
-        with st.container(key="detail_controls"):
-            ec1, ec2, ec3 = st.columns([5, 3, 3])
-            with ec1:
-                st.session_state[edit_key] = st.toggle(
-                    "✎ Correct labels for this photo", value=st.session_state[edit_key], key=f"toggle_{it['key']}")
-            with ec2:
-                if not st.session_state[edit_key]:
-                    st.session_state.show_boxes = st.checkbox("Show detection boxes", value=st.session_state.show_boxes)
-            with ec3:
-                if it.get("corrected"):
-                    st.markdown('<div style="text-align:right;padding-top:6px">'
-                                 '<span class="hv-mono" style="font-size:11px;background:#141414;color:#EFE600;'
-                                 'padding:3px 9px">✓ CORRECTION SAVED</span></div>', unsafe_allow_html=True)
-
         if not st.session_state[edit_key]:
             big = vh.draw_overlay(it["image"], a["persons"], selected_idx=st.session_state.selected_person,
                                    show_boxes=st.session_state.show_boxes, detail=True)
@@ -618,17 +624,10 @@ else:
                      f'CLASS COLOURS</span>{legend}</div>', unsafe_allow_html=True)
 
     with right:
-        st.markdown(f"""
-        <div style="background:#141414;color:#FFFFFF;padding:12px 16px;margin-bottom:10px">
-          <div class="hv-mono" style="font-size:10px;letter-spacing:1.5px;color:#9B9D97">RULE SET APPLIED</div>
-          <div class="hv-h1" style="font-size:17px;color:#FFFFFF">{rule_text}</div>
-          <div style="font-size:11.5px;color:#B9BBB4;margin-top:6px">Non-compliant = a positive absence finding at or above threshold {threshold:.2f}, for an item checked on the results screen.</div>
-        </div>
-        """, unsafe_allow_html=True)
 
         if not a["persons"]:
             note = " (detections exist below the current threshold — try lowering it)" if a.get("recoverable") else ""
-            st.markdown(f'<div style="background:#FFFFFF;border:2px solid #141414;padding:16px;">'
+            st.markdown(f'<div style="background:#FFFFFF;border:2px solid #141414;padding:16px;margin-top:24px">'
                          f'<div class="hv-h1" style="font-size:20px">{vh.icon_svg("warn", "#141414", 20, 2)} NO PERSON DETECTIONS</div>'
                          f'<div style="font-size:13px;margin-top:8px">No Person boxes returned for this photo{note}. '
                          f'Excluded from the compliance rate — review manually.</div></div>', unsafe_allow_html=True)
